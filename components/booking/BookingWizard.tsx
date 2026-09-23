@@ -30,6 +30,8 @@ type SuccessPayload = {
   time: string;
   serviceTitle: string;
   car: string;
+  /** true — сервер сохранил заявку во временном хранилище (демонстрационный режим). */
+  demo?: boolean;
 };
 
 const EMPTY_VALUES: BookingFormValues = {
@@ -216,12 +218,14 @@ export default function BookingWizard({ initialServiceSlug, embedded = false, on
         message?: string;
         errors?: FieldErrors;
         reason?: string;
+        demo?: boolean;
         booking?: SuccessPayload;
       };
 
       if (response.ok && data.ok && data.booking) {
-        setResult(data.booking);
-        onSuccess?.(data.booking);
+        const payload: SuccessPayload = { ...data.booking, demo: data.demo === true };
+        setResult(payload);
+        onSuccess?.(payload);
         return;
       }
 
@@ -282,6 +286,13 @@ export default function BookingWizard({ initialServiceSlug, embedded = false, on
             {BUSINESS.phone.display}
           </a>
         </div>
+
+        {result.demo ? (
+          <p className="rounded-[var(--radius-control)] border border-[var(--color-warning)] bg-[var(--color-warning)]/10 p-3 text-center text-[13px] leading-relaxed">
+            <strong>Демонстрационный режим.</strong> База не подключена, поэтому заявка не сохраняется постоянно.
+            Для рабочего запуска подключите базу — заявки начнут приходить в панель и в Telegram.
+          </p>
+        ) : null}
 
         <p className="hint text-center">
           Приехать раньше или позже? Позвоните — договоримся. Работаем {BUSINESS.hours.text.toLowerCase()}.

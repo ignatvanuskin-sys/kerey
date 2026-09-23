@@ -14,6 +14,7 @@
     "smoke": "powershell -ExecutionPolicy Bypass -File scripts/run-smoke.ps1",
     "lighthouse": "powershell -ExecutionPolicy Bypass -File scripts/run-lighthouse.ps1",
     "make-images": "powershell -ExecutionPolicy Bypass -File scripts/make-images.ps1",
+    "demo": "powershell -ExecutionPolicy Bypass -File scripts/demo.ps1",
     "reset": "tsx scripts/reset.ts",
     "env:init": "node scripts/init-env.mjs"
   },

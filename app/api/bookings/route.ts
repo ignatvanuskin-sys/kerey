@@ -3,7 +3,7 @@ import { createBooking, getBookings } from '@/lib/booking';
 import { looksLikeBot, parseBookingPayload } from '@/lib/validation';
 import { hitLimit } from '@/lib/rate-limit';
 import { isAdmin, ipHash } from '@/lib/auth';
-import { isStorageWritable } from '@/lib/storage';
+import { isStorageWritable, isTemporaryStorage } from '@/lib/storage';
 import { maskPhoneForLog } from '@/lib/phone';
 
 export const runtime = 'nodejs';
@@ -99,6 +99,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   return NextResponse.json(
     {
       ok: true,
+      // На хостинге без базы заявка живёт только во временном хранилище —
+      // говорим об этом прямо, чтобы владелец не потерял реальные обращения.
+      demo: await isTemporaryStorage(),
       booking: {
         id: result.booking.id,
         number: result.booking.number,
