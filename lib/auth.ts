@@ -7,6 +7,7 @@
  */
 import crypto from 'node:crypto';
 import { cookies } from 'next/headers';
+import { isTemporaryStorage } from './storage';
 
 export const ADMIN_COOKIE = 'kerey_admin';
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -26,16 +27,31 @@ function publicBaseUrl(): string {
   return (process.env.PUBLIC_BASE_URL?.trim() || 'http://localhost:3000').replace(/\/+$/, '');
 }
 
-export function adminConfigured(): boolean {
-  return Boolean(adminPassword());
+/**
+ * Пароль демонстрационного доступа.
+ * Действует ТОЛЬКО когда постоянное хранилище не подключено, то есть настоящих данных
+ * клиентов на сервере быть не может. Как только подключена база или задан ADMIN_PASSWORD,
+ * демо-доступ отключается сам.
+ */
+export const DEMO_PASSWORD = 'demo';
+
+export async function adminConfigured(): Promise<boolean> {
+  return Boolean(adminPassword()) || (await isTemporaryStorage());
 }
 
-export function verifyPassword(input: string): boolean {
+/** Демо-доступ активен: постоянного пароля нет и данные хранятся временно. */
+export async function isDemoAccess(): Promise<boolean> {
+  return !adminPassword() && (await isTemporaryStorage());
+}
+
+export async function verifyPassword(input: string): Promise<boolean> {
   const expected = adminPassword();
-  if (!expected) return false;
-  const a = crypto.createHash('sha256').update(input).digest();
-  const b = crypto.createHash('sha256').update(expected).digest();
-  return crypto.timingSafeEqual(a, b);
+  if (expected) {
+    const a = crypto.createHash('sha256').update(input).digest();
+    const b = crypto.createHash('sha256').update(expected).digest();
+    return crypto.timingSafeEqual(a, b);
+  }
+  return (await isTemporaryStorage()) && input === DEMO_PASSWORD;
 }
 
 function sign(payload: string): string {

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { isAdmin } from '@/lib/auth';
+import { isAdmin, isDemoAccess } from '@/lib/auth';
 import AdminLogin from '@/components/admin/AdminLogin';
 
 export const dynamic = 'force-dynamic';
@@ -13,9 +13,11 @@ export const metadata: Metadata = {
 export default async function AdminLoginPage() {
   if (await isAdmin()) redirect('/admin');
 
+  const demoAccess = await isDemoAccess();
+
   return (
-    <main className="container-x flex min-h-dvh max-w-[440px] flex-col justify-center py-12">
-      <AdminLogin />
+    <main className="container-x flex min-h-dvh max-w-[460px] flex-col justify-center py-12">
+      <AdminLogin demoAccess={demoAccess} />
     </main>
   );
 }

@@ -16,8 +16,10 @@ if (-not (Test-Path $targetDir)) { New-Item -ItemType Directory -Force -Path $ta
 
 # исходник -> имя файла, ширина, высота
 $jobs = @(
-  @{ src = 'img-mudq224x-bd4e8250.png'; out = 'hero.jpg';                  w = 1920; h = 1080 },
-  @{ src = 'img-mudq224x-bd4e8250.png'; out = 'hero-mobile.jpg';           w = 960;  h = 540 },
+  # Фон первого экрана лежит под тёмным градиентом и полупрозрачный,
+  # поэтому сжимаем его заметно — на глаз это не видно, а LCP на телефоне быстрее.
+  @{ src = 'img-mudq224x-bd4e8250.png'; out = 'hero.jpg';                  w = 1600; h = 900 },
+  @{ src = 'img-mudq224x-bd4e8250.png'; out = 'hero-mobile.jpg';           w = 720;  h = 405 },
   @{ src = 'img-mudq224x-bd4e8250.png'; out = 'og.jpg';                    w = 1200; h = 630 },
   @{ src = 'img-mudq27o7-d82e32f6.png'; out = 'gallery-service-bay.jpg';   w = 1000; h = 750 },
   @{ src = 'img-mudq1wje-5908924c.png'; out = 'gallery-diagnostics.jpg';   w = 1000; h = 750 },

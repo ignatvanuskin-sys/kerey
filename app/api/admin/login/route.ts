@@ -22,9 +22,9 @@ function clientIp(request: NextRequest): string {
 
 /** POST /api/admin/login — вход в панель. 5 неудачных попыток за 15 минут на адрес. */
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  if (!adminConfigured()) {
+  if (!(await adminConfigured())) {
     return NextResponse.json(
-      { ok: false, message: 'Пароль не задан на сервере: добавьте ADMIN_PASSWORD в .env' },
+      { ok: false, message: 'Пароль не задан на сервере: добавьте ADMIN_PASSWORD в переменные окружения' },
       { status: 503 },
     );
   }
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ ok: false, message: 'Некорректный запрос' }, { status: 400 });
   }
 
-  if (!verifyPassword(password)) {
+  if (!(await verifyPassword(password))) {
     return NextResponse.json({ ok: false, message: 'Неверный пароль' }, { status: 401 });
   }
 

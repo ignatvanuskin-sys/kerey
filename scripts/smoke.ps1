@@ -200,6 +200,12 @@ Check 'Фильтр по статусу работает' ($emptyState.bookings.
 $adminPage = Invoke-WebRequest -Uri "$Base/admin" -WebSession $session -UseBasicParsing
 Check 'Страница /admin открывается с сессией' ($adminPage.StatusCode -eq 200 -and $adminPage.Content -match 'Заявки')
 
+# Заявка должна быть видна именно в отданной странице, а не только в API:
+# раньше панель показывала пустой список после перезагрузки.
+$numberLabel = '№' + $createdJson.booking.number.ToString().PadLeft(4, '0')
+Check 'Заявка видна в панели при загрузке страницы' ($adminPage.Content -match [regex]::Escape($numberLabel)) ($numberLabel)
+Check 'Постоянное хранилище: демо-режим выключен' (-not ($adminPage.Content -match 'Демонстрационный режим'))
+
 $logout = Send-Json 'Post' "$Base/api/admin/logout" @{} @{} $session
 Check 'Выход из панели' ($logout.StatusCode -eq 200)
 

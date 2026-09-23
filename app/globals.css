@@ -272,6 +272,24 @@
     color: var(--color-danger);
   }
 
+  /* Ссылки в подвале: не меньше 44 px по высоте, чтобы попадать пальцем */
+  .footer-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  .footer-link:hover {
+    color: var(--color-ink);
+  }
+
+  /* Ссылка-строка в тексте: увеличиваем зону нажатия, не ломая абзац */
+  .inline-link-tap {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
   .chip {
     display: inline-flex;
     align-items: center;
@@ -305,6 +323,19 @@
       linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
       linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
     background-size: 64px 64px;
+  }
+
+  /* Короткие экраны телефонов (например, 360×640): поджимаем первый экран,
+     чтобы кнопки и телефон помещались над закреплённой панелью */
+  @media (max-height: 700px) and (max-width: 640px) {
+    .hero-lead {
+      font-size: 15px;
+      margin-top: 12px;
+    }
+
+    .hero-trust {
+      margin-top: 12px;
+    }
   }
 
   .no-scrollbar::-webkit-scrollbar {

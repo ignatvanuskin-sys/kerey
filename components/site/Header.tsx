@@ -42,7 +42,7 @@ export default function Header() {
       )}
     >
       <div className={cn('container-x flex items-center justify-between gap-3', compact ? 'h-16' : 'h-[72px]')}>
-        <Link href="/" className="flex items-center gap-2.5" aria-label="Керей — на главную">
+        <Link href="/" className="flex min-h-[44px] items-center gap-2.5" aria-label="Керей — на главную">
           <span className="font-[family-name:var(--font-display)] text-[26px] font-semibold uppercase leading-none tracking-[0.06em]">
             Керей
           </span>

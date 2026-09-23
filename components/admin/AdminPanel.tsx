@@ -38,7 +38,11 @@ export default function AdminPanel({
   dashboard: Dashboard;
 }) {
   const router = useRouter();
-  const [bookings, setBookings] = useState<BookingRecord[]>(initialBookings);
+  /**
+   * Список всегда берём из данных сервера: после router.refresh() приходят свежие заявки.
+   * Своей копии в состоянии нет — иначе панель показывала бы устаревший список.
+   */
+  const bookings = initialBookings;
   const [filter, setFilter] = useState<BookingStatus | 'ALL'>('ALL');
   const [search, setSearch] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -68,12 +72,11 @@ export default function AdminPanel({
       });
       const data = (await response.json()) as { ok?: boolean; message?: string; booking?: BookingRecord };
 
-      if (!response.ok || !data.ok || !data.booking) {
+      if (!response.ok || !data.ok) {
         setMessage({ kind: 'error', text: data.message ?? 'Не удалось изменить статус' });
         return;
       }
 
-      setBookings((current) => current.map((item) => (item.id === id ? data.booking! : item)));
       setMessage({ kind: 'ok', text: `Статус обновлён: ${STATUS_LABELS[status]}` });
       router.refresh();
     } catch {
@@ -136,7 +139,7 @@ export default function AdminPanel({
               aria-pressed={filter === item.key}
               onClick={() => setFilter(item.key)}
               className={cn(
-                'min-h-[40px] rounded-full border px-4 text-[14px] transition-colors',
+                'min-h-[44px] rounded-full border px-4 text-[14px] transition-colors',
                 filter === item.key
                   ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-ink)]'
                   : 'border-[var(--color-line)] text-[var(--color-muted)] hover:border-[var(--color-line-strong)]',
@@ -222,7 +225,10 @@ export default function AdminPanel({
                       <span className="hint">создана {dayMonth(booking.createdAt.slice(0, 10))}</span>
                     </td>
                     <td className="px-4 py-4">
-                      <a href={`tel:${booking.phone}`} className="inline-flex items-center gap-2 hover:text-[var(--color-accent)]">
+                      <a
+                        href={`tel:${booking.phone}`}
+                        className="inline-flex min-h-[44px] items-center gap-2 hover:text-[var(--color-accent)]"
+                      >
                         <Phone className="size-3.5" aria-hidden="true" />
                         {formatPhone(booking.phone)}
                       </a>
@@ -230,7 +236,7 @@ export default function AdminPanel({
                         href={`https://wa.me/${waDigits(booking.phone)}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="hint mt-1 block hover:text-[var(--color-accent)]"
+                        className="hint inline-flex min-h-[44px] items-center hover:text-[var(--color-accent)]"
                       >
                         WhatsApp →
                       </a>
@@ -279,7 +285,7 @@ export default function AdminPanel({
                   <div className="flex justify-between gap-4">
                     <dt className="text-[var(--color-muted)]">Телефон</dt>
                     <dd>
-                      <a href={`tel:${booking.phone}`} className="font-semibold">
+                      <a href={`tel:${booking.phone}`} className="inline-flex min-h-[44px] items-center font-semibold">
                         {formatPhone(booking.phone)}
                       </a>
                     </dd>
@@ -354,7 +360,8 @@ function StatusSelect({
       </label>
       <select
         id={`status-${booking.id}`}
-        className="field !min-h-[42px] !w-auto !py-0 text-[14px]"
+        // 16px — чтобы iOS не увеличивал страницу при открытии списка
+        className="field !min-h-[44px] !w-auto !py-0 text-[16px]"
         value={booking.status}
         disabled={busy}
         onChange={(event) => void onChange(booking.id, event.target.value as BookingStatus)}

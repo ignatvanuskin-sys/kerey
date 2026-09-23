@@ -12,7 +12,7 @@ async function main(): Promise<void> {
     store.seq = 0;
   });
 
-  console.log(`Хранилище: ${storageLabel()}`);
+  console.log(`Хранилище: ${await storageLabel()}`);
   console.log(`Удалено заявок: ${before.bookings.length}`);
   console.log('Нумерация заявок начнётся заново с №0001.');
 }

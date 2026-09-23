@@ -15,9 +15,11 @@
  * readStore/mutateStore, поэтому замена хранилища не требует правок логики записи.
  */
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { BookingRecord } from './booking-types';
+import { isServerless } from './site-url';
 
 export type StoreShape = {
   version: 1;
@@ -90,14 +92,34 @@ async function releaseLock(token: string): Promise<void> {
 const DATA_DIR = process.env.KEREY_DATA_DIR
   ? path.resolve(process.env.KEREY_DATA_DIR)
   : path.join(process.cwd(), 'data');
-const FILE = path.join(DATA_DIR, 'bookings.json');
+/** Временное хранилище: каталог временных файлов. На Vercel это единственное место для записи. */
+const TEMP_DIR = path.join(os.tmpdir(), 'kerey-data');
 
 let queue: Promise<unknown> = Promise.resolve();
 
-async function fileRead(): Promise<StoreShape> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
+/** Проверка записи в каталог. Одна повторная попытка — на случай кратковременной блокировки файла. */
+async function canWrite(dir: string, attempt = 0): Promise<boolean> {
   try {
-    const raw = await fs.readFile(FILE, 'utf8');
+    await fs.mkdir(dir, { recursive: true });
+    const probe = path.join(dir, `.write-probe-${process.pid}`);
+    await fs.writeFile(probe, 'ok', 'utf8');
+    await fs.unlink(probe).catch(() => undefined); // не смогли удалить — не повод считать каталог недоступным
+    return true;
+  } catch {
+    if (attempt === 0) return canWrite(dir, 1);
+    return false;
+  }
+}
+
+async function resolveDir(): Promise<string> {
+  return (await storageMode()) === 'temp' ? TEMP_DIR : DATA_DIR;
+}
+
+async function fileRead(): Promise<StoreShape> {
+  const dir = await resolveDir();
+  try {
+    await fs.mkdir(dir, { recursive: true });
+    const raw = await fs.readFile(path.join(dir, 'bookings.json'), 'utf8');
     return normalize(JSON.parse(raw));
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
@@ -109,10 +131,12 @@ async function fileRead(): Promise<StoreShape> {
 }
 
 async function fileWrite(store: StoreShape): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  const tmp = `${FILE}.${process.pid}.tmp`;
+  const dir = await resolveDir();
+  await fs.mkdir(dir, { recursive: true });
+  const target = path.join(dir, 'bookings.json');
+  const tmp = `${target}.${process.pid}.tmp`;
   await fs.writeFile(tmp, JSON.stringify(store, null, 2), 'utf8');
-  await fs.rename(tmp, FILE);
+  await fs.rename(tmp, target);
 }
 
 /* --------------------------------- Общее ---------------------------------- */
@@ -163,28 +187,66 @@ export async function mutateStore<T>(mutator: (store: StoreShape) => T | Promise
   return next;
 }
 
+export type StorageMode = 'redis' | 'file' | 'temp';
+
+let resolvedMode: StorageMode | null = null;
+
 /**
- * Готово ли хранилище принимать заявки.
- * На serverless без подключённой базы запись невозможна — об этом честно сообщаем
- * в форме и в панели вместо непонятной ошибки 500.
+ * Какое хранилище реально используется:
+ *  • redis — подключена база, данные постоянные;
+ *  • file  — обычный сервер, файл на диске, данные постоянные;
+ *  • temp  — serverless без базы: пишем во временный каталог, чтобы демонстрация работала,
+ *            но данные могут исчезнуть после перезапуска инстанса.
+ *
+ * ВАЖНО: положительный результат кэшируется, а `temp` — нет. Иначе одна случайная осечка
+ * проверки записи (занятый файл, антивирус) навсегда переводила бы рабочий сайт в демо-режим:
+ * панель читала бы пустой временный каталог и показывала пустой список.
  */
-export async function isStorageWritable(): Promise<boolean> {
-  if (kvConfigured) return true;
-  try {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    const probe = path.join(DATA_DIR, '.write-probe');
-    await fs.writeFile(probe, 'ok', 'utf8');
-    await fs.unlink(probe);
-    return true;
-  } catch {
-    return false;
+export async function storageMode(): Promise<StorageMode> {
+  if (resolvedMode === 'redis' || resolvedMode === 'file') return resolvedMode;
+
+  if (kvConfigured) {
+    resolvedMode = 'redis';
+    return resolvedMode;
   }
+
+  // На обычном сервере (не serverless) постоянное хранилище — это файл на диске.
+  if (!isServerless() && (await canWrite(DATA_DIR))) {
+    resolvedMode = 'file';
+    return resolvedMode;
+  }
+
+  // Остаётся serverless без базы либо недоступный каталог данных.
+  if (await canWrite(TEMP_DIR)) {
+    console.warn('[storage] постоянное хранилище недоступно, включён временный режим (демо)');
+    return 'temp';
+  }
+
+  console.error('[storage] нет доступного хранилища');
+  return 'temp';
+}
+
+/** Демо-режим: данные не переживут перезапуск, значит и настоящих данных там быть не может. */
+export async function isTemporaryStorage(): Promise<boolean> {
+  return (await storageMode()) === 'temp';
+}
+
+/** Готово ли хранилище принимать заявки. */
+export async function isStorageWritable(): Promise<boolean> {
+  const mode = await storageMode();
+  if (mode === 'redis') return true;
+  return canWrite(mode === 'temp' ? TEMP_DIR : DATA_DIR);
 }
 
 /** Описание хранилища для служебных сообщений. */
-export function storageLabel(): string {
-  if (kvConfigured) return 'Redis (Vercel KV / Upstash)';
-  return `файл ${FILE}`;
+export async function storageLabel(): Promise<string> {
+  const mode = await storageMode();
+  if (mode === 'redis') return 'Redis (Vercel KV / Upstash) — постоянное';
+  if (mode === 'file') return `файл ${path.join(DATA_DIR, 'bookings.json')} — постоянное`;
+  return `временный каталог ${TEMP_DIR} — демо-режим, данные могут исчезнуть`;
 }
 
-export const STORAGE_FILE = FILE;
+/** Путь к файлу заявок в текущем режиме (для служебных скриптов). */
+export async function storageFilePath(): Promise<string> {
+  return path.join(await resolveDir(), 'bookings.json');
+}

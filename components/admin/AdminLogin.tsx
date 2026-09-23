@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CircleAlert, LoaderCircle, LockKeyhole } from 'lucide-react';
 
-export default function AdminLogin() {
+/** Демо-режим: постоянный пароль не задан, данные временные — показываем подсказку и пароль. */
+export default function AdminLogin({ demoAccess = false }: { demoAccess?: boolean }) {
   const router = useRouter();
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -77,9 +78,17 @@ export default function AdminLogin() {
         {busy ? 'Проверяем…' : 'Войти'}
       </button>
 
-      <p className="hint">
-        Пароль задаётся переменной <code>ADMIN_PASSWORD</code> на сервере. Если она пустая, вход закрыт.
-      </p>
+      {demoAccess ? (
+        <p className="rounded-[var(--radius-control)] border border-[var(--color-accent)]/50 bg-[var(--color-accent)]/10 p-3 text-[13px] leading-relaxed">
+          <strong className="block">Демонстрационный доступ</strong>
+          Пароль: <code className="text-[var(--color-ink)]">demo</code>. Работает только пока не подключена база и не
+          задан постоянный пароль: заявки в этом режиме хранятся временно и могут исчезнуть после перезапуска сервера.
+        </p>
+      ) : (
+        <p className="hint">
+          Пароль задаётся переменной <code>ADMIN_PASSWORD</code> в настройках сервера. Если она пустая, вход закрыт.
+        </p>
+      )}
     </form>
   );
 }

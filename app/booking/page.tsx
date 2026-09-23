@@ -49,7 +49,10 @@ export default function BookingPage() {
               <li className="flex items-start gap-3">
                 <Phone className="mt-0.5 size-5 shrink-0 text-[var(--color-accent)]" aria-hidden="true" />
                 <span>
-                  <a href={`tel:${BUSINESS.phone.e164}`} className="font-semibold hover:text-[var(--color-accent)]">
+                  <a
+                    href={`tel:${BUSINESS.phone.e164}`}
+                    className="inline-flex min-h-[44px] items-center font-semibold hover:text-[var(--color-accent)]"
+                  >
                     {BUSINESS.phone.display}
                   </a>
                   <span className="hint block">контакт-центр: {BUSINESS.phoneCenterHours}</span>

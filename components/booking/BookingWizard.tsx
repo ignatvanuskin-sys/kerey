@@ -671,7 +671,7 @@ export default function BookingWizard({ initialServiceSlug, embedded = false, on
             <label className="flex cursor-pointer items-start gap-3 text-[14px] leading-relaxed">
               <input
                 type="checkbox"
-                className="mt-0.5 size-5 shrink-0 accent-[var(--color-accent)]"
+                className="mt-0.5 size-6 shrink-0 accent-[var(--color-accent)]"
                 checked={consent}
                 onChange={(event) => {
                   setConsent(event.target.checked);

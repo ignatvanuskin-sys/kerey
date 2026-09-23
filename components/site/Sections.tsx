@@ -203,7 +203,7 @@ export function WhyUsSection() {
                         href={item.href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-3 inline-block text-[14px] font-semibold text-[var(--color-accent)] underline-offset-4 hover:underline"
+                        className="mt-2 inline-flex min-h-[44px] items-center text-[14px] font-semibold text-[var(--color-accent)] underline-offset-4 hover:underline"
                       >
                         Смотреть отзывы в 2ГИС →
                       </a>
@@ -270,7 +270,7 @@ export function ReviewsSection() {
           ))}
         </ul>
 
-        <p className="mt-5 text-[13px] text-[var(--color-muted)]">
+        <p className="mt-5 max-w-[80ch] text-[13px] text-[var(--color-muted)]">
           Источник: карточка компании в 2ГИС. Тексты приведены как есть, орфография авторов сохранена.
         </p>
       </div>
@@ -423,7 +423,10 @@ export function ContactsSection() {
             <p className="flex items-start gap-3 text-[16px]">
               <Phone className="mt-0.5 size-5 shrink-0 text-[var(--color-accent)]" aria-hidden="true" />
               <span>
-                <a href={`tel:${BUSINESS.phone.e164}`} className="block font-semibold hover:text-[var(--color-accent)]">
+                <a
+                  href={`tel:${BUSINESS.phone.e164}`}
+                  className="inline-flex min-h-[44px] items-center font-semibold hover:text-[var(--color-accent)]"
+                >
                   {BUSINESS.phone.display}
                 </a>
                 <span className="hint">контакт-центр: {BUSINESS.phoneCenterHours}</span>
@@ -437,7 +440,7 @@ export function ContactsSection() {
                   href={`https://wa.me/${entry.wa}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-semibold underline-offset-4 hover:text-[var(--color-accent)] hover:underline"
+                  className="inline-flex min-h-[44px] items-center font-semibold underline-offset-4 hover:text-[var(--color-accent)] hover:underline"
                 >
                   WhatsApp {entry.display}
                 </a>
@@ -446,7 +449,7 @@ export function ContactsSection() {
                 href={BUSINESS.instagram.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-semibold underline-offset-4 hover:text-[var(--color-accent)] hover:underline"
+                className="inline-flex min-h-[44px] items-center font-semibold underline-offset-4 hover:text-[var(--color-accent)] hover:underline"
               >
                 Instagram @{BUSINESS.instagram.handle}
               </a>
@@ -478,29 +481,41 @@ export function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-[var(--color-line)] py-10">
+    // Нижний отступ на телефоне — с запасом под закреплённую панель действий,
+    // иначе она перекрывает последние строки подвала.
+    <footer className="border-t border-[var(--color-line)] pt-10 pb-[104px] md:pb-10">
       <div className="container-x grid gap-6 text-[14px] text-[var(--color-muted)]">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <span className="font-[family-name:var(--font-display)] text-[22px] uppercase tracking-[0.08em] text-[var(--color-ink)]">
             Керей
           </span>
-          <nav className="flex flex-wrap gap-5" aria-label="Ссылки в подвале">
-            <Link href="/#services" className="hover:text-[var(--color-ink)]">
+          <nav className="flex flex-wrap items-center gap-x-6" aria-label="Ссылки в подвале">
+            <Link href="/#services" className="footer-link">
               Услуги
             </Link>
-            <Link href="/#reviews" className="hover:text-[var(--color-ink)]">
+            <Link href="/#reviews" className="footer-link">
               Отзывы
             </Link>
-            <Link href="/booking" className="hover:text-[var(--color-ink)]">
+            <Link href="/booking" className="footer-link">
               Онлайн-запись
             </Link>
-            <a href={TWO_GIS.card} target="_blank" rel="noopener noreferrer" className="hover:text-[var(--color-ink)]">
+            <a
+              href={TWO_GIS.card}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="footer-link"
+            >
               2ГИС
             </a>
-            <a href={BUSINESS.instagram.url} target="_blank" rel="noopener noreferrer" className="hover:text-[var(--color-ink)]">
+            <a
+              href={BUSINESS.instagram.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="footer-link"
+            >
               Instagram
             </a>
-            <Link href="/privacy" className="hover:text-[var(--color-ink)]">
+            <Link href="/privacy" className="footer-link">
               Политика данных
             </Link>
           </nav>
@@ -509,18 +524,18 @@ export function Footer() {
         <div className="metal-line" />
 
         <div className="grid gap-1">
-          <p>
+          <p className="max-w-[80ch]">
             {BUSINESS.address}, {BUSINESS.city}. {BUSINESS.hours.text}. Телефон:{' '}
             <a href={`tel:${BUSINESS.phone.e164}`} className="hover:text-[var(--color-ink)]">
               {BUSINESS.phone.display}
             </a>
             .
           </p>
-          <p>
+          <p className="max-w-[80ch]">
             © {year} Автокомплекс «{BUSINESS.name}».
             {OWNER_INPUT.legalEntity ? ` ${OWNER_INPUT.legalEntity}` : ''}
           </p>
-          <p className="text-[13px]">
+          <p className="max-w-[80ch] text-[13px]">
             Информация о компании (адрес, часы работы, рейтинг, марки, направления) взята из публичной карточки 2ГИС.
             Изображения на сайте — демонстрационные и заменяются фотографиями сервиса.
           </p>

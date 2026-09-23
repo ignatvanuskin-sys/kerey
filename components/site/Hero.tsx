@@ -40,7 +40,7 @@ export default function Hero() {
       </div>
 
       {/* На телефоне отступы компактнее: так строка рейтинга и часов остаётся над панелью действий */}
-      <div className="container-x grid gap-8 pt-9 pb-14 md:gap-10 md:py-20 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-end lg:gap-16 lg:py-28">
+      <div className="container-x grid gap-8 pt-6 pb-14 md:gap-10 md:py-20 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-end lg:gap-16 lg:py-28">
         <div>
           <p className="eyebrow">Автокомплекс в Кокшетау</p>
 
@@ -48,12 +48,12 @@ export default function Hero() {
             Ремонт <span className="text-[var(--color-accent)]">ходовой</span> и двигателя — с записью онлайн
           </h1>
 
-          <p className="mt-5 max-w-[52ch] text-[16px] leading-relaxed text-[var(--color-ink)]/85 md:mt-6 md:text-[18px]">
+          <p className="hero-lead mt-4 max-w-[52ch] text-[16px] leading-relaxed text-[var(--color-ink)]/85 md:mt-6 md:text-[18px]">
             {BUSINESS.rubric} полного цикла: ходовая часть, бензиновые двигатели, развал-схождение и запчасти для
             иномарок. Выбираете удобное время на сайте — мы подтверждаем запись и ждём вас.
           </p>
 
-          <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center md:mt-8">
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center md:mt-8">
             <BookButton label="Записаться онлайн" className="sm:!px-8" />
             <a
               href={`tel:${BUSINESS.phone.e164}`}
@@ -65,12 +65,12 @@ export default function Hero() {
             </a>
           </div>
 
-          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 text-[14px] text-[var(--color-muted)] md:mt-7">
+          <div className="hero-trust mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 text-[14px] text-[var(--color-muted)] md:mt-7">
             <a
               href={TWO_GIS.reviews}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-[var(--color-ink)] transition-colors hover:text-[var(--color-accent)]"
+              className="inline-flex min-h-[44px] items-center gap-2 text-[var(--color-ink)] transition-colors hover:text-[var(--color-accent)]"
             >
               <Star className="size-4 fill-[var(--color-accent)] text-[var(--color-accent)]" aria-hidden="true" />
               <strong className="font-semibold">{BUSINESS.rating.value.toLocaleString('ru-RU')}</strong>
