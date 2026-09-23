@@ -330,6 +330,11 @@
       font-size: 34px;
     }
 
+    /* На 1–2 px меньше отступ, иначе нижняя кромка строки с рейтингом попадает на границу экрана */
+    .hero-inner {
+      padding-top: 24px;
+    }
+
     .hero-lead {
       font-size: 15px;
       margin-top: 12px;

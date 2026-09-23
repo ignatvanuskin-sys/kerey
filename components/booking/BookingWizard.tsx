@@ -278,6 +278,13 @@ export default function BookingWizard({ initialServiceSlug, embedded = false, on
           ))}
         </dl>
 
+        {result.demo ? (
+          <p className="rounded-[var(--radius-control)] border border-[var(--color-warning)] bg-[var(--color-warning)]/10 p-3 text-center text-[13px] leading-relaxed">
+            <strong>Демонстрационный режим.</strong> База не подключена, поэтому заявка не сохраняется постоянно.
+            Для рабочего запуска подключите базу — заявки начнут приходить в панель и в Telegram.
+          </p>
+        ) : null}
+
         <div className="grid gap-3 sm:grid-cols-2">
           <Link href="/" className="btn btn-primary">
             Вернуться на сайт
@@ -286,13 +293,6 @@ export default function BookingWizard({ initialServiceSlug, embedded = false, on
             {BUSINESS.phone.display}
           </a>
         </div>
-
-        {result.demo ? (
-          <p className="rounded-[var(--radius-control)] border border-[var(--color-warning)] bg-[var(--color-warning)]/10 p-3 text-center text-[13px] leading-relaxed">
-            <strong>Демонстрационный режим.</strong> База не подключена, поэтому заявка не сохраняется постоянно.
-            Для рабочего запуска подключите базу — заявки начнут приходить в панель и в Telegram.
-          </p>
-        ) : null}
 
         <p className="hint text-center">
           Приехать раньше или позже? Позвоните — договоримся. Работаем {BUSINESS.hours.text.toLowerCase()}.
