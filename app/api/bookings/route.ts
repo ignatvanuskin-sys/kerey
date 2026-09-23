@@ -1,121 +1,129 @@
-import type { NextRequest } from 'next/server';
-import { createBookingAtomic } from '@/db/bookings';
-import { hitRateLimit } from '@/db/repo';
-import { bookingNumber } from '@/lib/utils';
-import { clientIp, isSameOrigin, jsonError, jsonOk } from '@/lib/http';
-import { hashIp } from '@/lib/auth';
-import { looksLikeSpam, parseBookingInput, verifyTurnstile } from '@/lib/validation';
-import { normalizePhone } from '@/lib/phone';
-import { tryDeliverNow } from '@/lib/notify';
-import { publicSlots } from '@/lib/availability';
+import { NextResponse, type NextRequest } from 'next/server';
+import { createBooking, getBookings } from '@/lib/booking';
+import { looksLikeBot, parseBookingPayload } from '@/lib/validation';
+import { hitLimit } from '@/lib/rate-limit';
+import { isAdmin, ipHash } from '@/lib/auth';
+import { isStorageWritable } from '@/lib/storage';
 import { maskPhoneForLog } from '@/lib/phone';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const IP_LIMIT_PER_HOUR = 5;
-const PHONE_LIMIT_PER_DAY = 3;
+const IP_LIMIT = 5;
+const IP_WINDOW_MS = 60 * 60 * 1000; // 5 заявок в час с одного адреса
+
+function clientIp(request: NextRequest): string {
+  const forwarded = request.headers.get('x-forwarded-for');
+  if (forwarded) return forwarded.split(',')[0]!.trim();
+  return request.headers.get('x-real-ip')?.trim() || '0.0.0.0';
+}
 
 /**
- * POST /api/bookings
- * Order of operations (§2.5): validate → rate limit → store in the DB → notify.
- * The client always gets a success as soon as the row is stored, even when Telegram fails.
+ * POST /api/bookings — создать заявку.
+ * Порядок: валидация → антиспам → лимит → сохранение → уведомление.
  */
-export async function POST(request: NextRequest): Promise<Response> {
-  if (!isSameOrigin(request)) return jsonError(403, 'Запрос отклонён.');
-
-  let payload: unknown;
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  let raw: unknown;
   try {
-    payload = await request.json();
+    raw = await request.json();
   } catch {
-    return jsonError(422, 'Некорректный запрос.');
+    return NextResponse.json({ ok: false, message: 'Некорректный запрос' }, { status: 400 });
   }
 
-  const parsed = parseBookingInput(payload);
-  if (!parsed.ok) return jsonError(422, 'Проверьте поля формы.', { fields: parsed.errors });
-  const input = parsed.data;
+  const parsed = parseBookingPayload(raw);
+  if (!parsed.ok) {
+    return NextResponse.json({ ok: false, message: 'Проверьте поля формы', errors: parsed.errors }, { status: 422 });
+  }
 
-  if (looksLikeSpam(input)) {
-    return jsonError(422, 'Не удалось отправить заявку. Позвоните нам, пожалуйста.');
+  const elapsed = typeof (raw as { elapsedMs?: unknown }).elapsedMs === 'number'
+    ? ((raw as { elapsedMs: number }).elapsedMs)
+    : undefined;
+
+  if (looksLikeBot(parsed.data, elapsed)) {
+    // Не подсказываем боту, что именно его выдало.
+    return NextResponse.json({ ok: false, message: 'Не удалось отправить заявку. Позвоните нам, пожалуйста.' }, { status: 422 });
+  }
+
+  // На serverless-хостинге без подключённой базы запись невозможна:
+  // честно говорим об этом, а не отдаём непонятную ошибку 500.
+  if (!(await isStorageWritable())) {
+    console.error('[заявка] хранилище недоступно, заявка не сохранена');
+    return NextResponse.json(
+      {
+        ok: false,
+        message: `Не удалось сохранить заявку на сервере. Позвоните нам, пожалуйста: примем запись по телефону.`,
+      },
+      { status: 503 },
+    );
   }
 
   const ip = clientIp(request);
-  const ipHash = hashIp(ip);
-
-  const ipHits = hitRateLimit(`bookings:ip:${ipHash}`, 3600);
-  if (ipHits > IP_LIMIT_PER_HOUR) {
-    return jsonError(429, 'Слишком много записей с этого устройства. Попробуйте позже или позвоните нам.', {
-      retryAfter: 3600,
-    });
+  const limit = hitLimit(`booking:${ipHash(ip)}`, IP_LIMIT, IP_WINDOW_MS);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: 'Слишком много заявок с этого устройства. Позвоните нам — примем запись по телефону.',
+        retryAfterSec: limit.retryAfterSec,
+      },
+      { status: 429, headers: { 'Retry-After': String(limit.retryAfterSec) } },
+    );
   }
 
-  const phone = normalizePhone(input.phone);
-  if (!phone) return jsonError(422, 'Проверьте поля формы.', { fields: { phone: 'Укажите телефон в формате +7 XXX XXX XX XX.' } });
-
-  const phoneHits = hitRateLimit(`bookings:phone:${phone}`, 86_400);
-  if (phoneHits > PHONE_LIMIT_PER_DAY) {
-    return jsonError(429, 'По этому номеру уже оформлено несколько записей. Позвоните нам, пожалуйста.', {
-      retryAfter: 86_400,
-    });
-  }
-
-  const turnstileOk = await verifyTurnstile(input.turnstileToken, ip);
-  if (!turnstileOk) return jsonError(422, 'Не удалось проверить, что вы не робот. Обновите страницу.');
-
-  const idempotencyKey = request.headers.get('idempotency-key')?.trim().slice(0, 64) ?? null;
-
-  let result;
-  try {
-    result = createBookingAtomic({
-      serviceId: input.serviceId ?? null,
-      localDate: input.date,
-      time: input.time,
-      carBrand: input.carBrand,
-      carModel: input.carModel,
-      carYear: input.carYear ?? null,
-      carPlate: input.carPlate ?? null,
-      clientName: input.clientName,
-      clientPhone: phone,
-      contactMethod: input.contactMethod,
-      comment: input.comment ?? null,
-      source: 'site',
-      utmSource: input.utmSource ?? null,
-      utmMedium: input.utmMedium ?? null,
-      utmCampaign: input.utmCampaign ?? null,
-      idempotencyKey,
-      ipHash,
-    });
-  } catch (error) {
-    // A unique-constraint race (identical Idempotency-Key or an extremely tight double submit).
-    console.error('[bookings] insert failed', error instanceof Error ? error.message : 'unknown');
-    return jsonError(409, 'Это время только что заняли, выберите другое.', { retryable: true });
-  }
+  const result = await createBooking(parsed.data, { source: 'site' });
 
   if (!result.ok) {
+    if (result.reason === 'storage') {
+      return NextResponse.json(
+        { ok: false, message: 'Не удалось сохранить заявку на сервере. Позвоните нам, пожалуйста.' },
+        { status: 503 },
+      );
+    }
+
     const message =
-      result.reason === 'slot_taken'
-        ? 'Это время только что заняли, выберите другое.'
-        : 'Это время недоступно, выберите другое.';
-    console.info('[bookings] rejected', { phone: maskPhoneForLog(phone), reason: result.reason });
-    return jsonError(409, message, { slots: publicSlots(result.slots) });
+      result.reason === 'taken'
+        ? 'Это время только что заняли — выберите другое.'
+        : result.reason === 'past'
+          ? 'Это время уже прошло — выберите другое.'
+          : 'Это время недоступно — выберите другое.';
+    return NextResponse.json({ ok: false, message, reason: result.reason }, { status: 409 });
   }
 
-  if (!result.reused) {
-    await tryDeliverNow(result.notificationId);
+  console.info('[заявка] создана', {
+    number: result.booking.number,
+    date: result.booking.date,
+    time: result.booking.time,
+    phone: maskPhoneForLog(result.booking.phone),
+  });
+
+  return NextResponse.json(
+    {
+      ok: true,
+      booking: {
+        id: result.booking.id,
+        number: result.booking.number,
+        name: result.booking.name,
+        date: result.booking.date,
+        time: result.booking.time,
+        serviceTitle: result.booking.serviceTitle,
+        car: `${result.booking.carBrand} ${result.booking.carModel}`.trim(),
+      },
+    },
+    { status: 201 },
+  );
+}
+
+/** GET /api/bookings — список для панели (только для авторизованных). */
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  if (!(await isAdmin())) {
+    return NextResponse.json({ ok: false, message: 'Требуется вход' }, { status: 401 });
   }
 
-  console.info('[bookings] created', {
-    number: bookingNumber(result.booking.id),
-    startAt: result.booking.start_at,
-    phone: maskPhoneForLog(phone),
-  });
+  const params = new URL(request.url).searchParams;
+  const status = (params.get('status') ?? 'ALL') as never;
+  const date = params.get('date') ?? undefined;
+  const search = params.get('search') ?? undefined;
 
-  return jsonOk({
-    number: bookingNumber(result.booking.id),
-    token: result.booking.token,
-    startAt: result.booking.start_at,
-    endAt: result.booking.end_at,
-    status: result.booking.status,
-    reused: result.reused,
-  });
+  const bookings = await getBookings({ status, date, search });
+  return NextResponse.json({ ok: true, bookings }, { headers: { 'Cache-Control': 'no-store' } });
 }

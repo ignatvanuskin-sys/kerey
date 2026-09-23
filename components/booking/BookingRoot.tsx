@@ -1,29 +1,22 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import BookingWizard from '@/components/booking/BookingWizard';
-import { onBookingOpen } from '@/lib/booking-ui';
-import type { ServiceOption } from '@/components/booking/types';
-
-type Props = {
-  services: ServiceOption[];
-  phoneDisplay: string;
-  phoneE164: string;
-};
+import BookingWizard from './BookingWizard';
+import { onBookingOpen } from './booking-ui';
 
 /**
- * Single wizard instance for the whole page: bottom sheet on mobile, dialog on desktop (§6.2).
- * Any BookButton opens it through a DOM event.
+ * Одна форма записи на всю страницу: на телефоне — «шторка» снизу, на компьютере — окно по центру.
+ * Любая кнопка «Записаться» открывает её через событие (components/booking/booking-ui.ts).
  */
-export default function BookingRoot({ services, phoneDisplay, phoneE164 }: Props) {
+export default function BookingRoot() {
   const [open, setOpen] = useState(false);
   const [serviceSlug, setServiceSlug] = useState<string | undefined>(undefined);
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(
     () =>
-      onBookingOpen((detail) => {
-        setServiceSlug(detail.serviceSlug);
+      onBookingOpen((slug) => {
+        setServiceSlug(slug);
         setOpen(true);
       }),
     [],
@@ -31,16 +24,18 @@ export default function BookingRoot({ services, phoneDisplay, phoneE164 }: Props
 
   useEffect(() => {
     if (!open) return;
+
     document.body.style.overflow = 'hidden';
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false);
     };
     window.addEventListener('keydown', onKeyDown);
-    const timer = setTimeout(() => panelRef.current?.focus(), 30);
+    const focusTimer = setTimeout(() => panelRef.current?.focus(), 40);
+
     return () => {
       document.body.style.overflow = '';
       window.removeEventListener('keydown', onKeyDown);
-      clearTimeout(timer);
+      clearTimeout(focusTimer);
     };
   }, [open]);
 
@@ -48,10 +43,10 @@ export default function BookingRoot({ services, phoneDisplay, phoneE164 }: Props
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 md:items-center"
+      className="fade-in fixed inset-0 z-50 flex items-end justify-center bg-black/75 backdrop-blur-sm md:items-center"
       role="dialog"
       aria-modal="true"
-      aria-label="Онлайн-запись"
+      aria-label="Онлайн-запись в автокомплекс «Керей»"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) setOpen(false);
       }}
@@ -59,14 +54,11 @@ export default function BookingRoot({ services, phoneDisplay, phoneE164 }: Props
       <div
         ref={panelRef}
         tabIndex={-1}
-        className="slide-up w-full max-h-[92vh] overflow-hidden rounded-t-[20px] border border-[var(--color-line)] bg-[var(--color-surface)] outline-none md:max-w-[560px] md:rounded-[var(--radius-card)]"
+        className="sheet-in w-full overflow-hidden rounded-t-[18px] border border-[var(--color-line)] bg-[var(--color-surface)] outline-none md:max-w-[620px] md:rounded-[var(--radius-card)]"
       >
         <BookingWizard
-          key={serviceSlug ?? 'default'}
-          services={services}
+          key={serviceSlug ?? 'any'}
           initialServiceSlug={serviceSlug}
-          phoneDisplay={phoneDisplay}
-          phoneE164={phoneE164}
           onClose={() => setOpen(false)}
         />
       </div>

@@ -1,96 +1,97 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { BUSINESS, LEGAL_ENTITY } from '@/content/business';
+import { BUSINESS, OWNER_INPUT } from '@/content/business';
+import Header from '@/components/site/Header';
+import { Footer } from '@/components/site/Sections';
 
 export const metadata: Metadata = {
-  title: 'Политика обработки персональных данных',
+  title: 'Обработка персональных данных',
   description:
-    'Как автокомплекс «Керей» в Кокшетау обрабатывает персональные данные, оставленные при онлайн-записи.',
+    'Как автокомплекс «Керей» в Кокшетау обрабатывает данные, которые вы оставляете при онлайн-записи на ремонт.',
   alternates: { canonical: '/privacy' },
 };
 
 /**
- * Типовая политика. Перед публикацией её должен проверить юрист (§10, §12).
- * TODO_OWNER: реквизиты оператора, контакт для обращений, срок хранения.
+ * Политика обработки данных.
+ * TODO владельцу: перед публикацией проверьте текст у юриста и добавьте реквизиты компании —
+ * в карточке 2ГИС их нет, поэтому здесь стоит нейтральная формулировка.
  */
 export default function PrivacyPage() {
   return (
-    <main className="container-x max-w-[760px] py-8 md:py-14">
-      <Link href="/" className="hint">
-        ← На главную
-      </Link>
+    <>
+      <Header />
 
-      <h1 className="h2 mt-4">Политика обработки персональных данных</h1>
-      <p className="mt-2 text-[15px] text-[var(--color-muted)]">
-        Документ подготовлен по типовой форме для сайта автокомплекса «{BUSINESS.name}» ({BUSINESS.city}). Оператор:{' '}
-        {LEGAL_ENTITY === 'TODO_OWNER' ? 'реквизиты уточняются' : LEGAL_ENTITY}.
-      </p>
+      <main className="container-x max-w-[820px] py-10 pb-[76px] md:py-16 md:pb-16">
+        <Link href="/" className="hint hover:text-[var(--color-ink)]">
+          ← На главную
+        </Link>
 
-      <div className="mt-6 grid gap-5 text-[15px] leading-relaxed">
-        <section>
-          <h2 className="text-[18px] font-bold">1. Какие данные мы собираем</h2>
-          <p className="mt-1 text-[var(--color-muted)]">
-            При онлайн-записи: имя, номер телефона, предпочтительный способ связи, данные об автомобиле (марка, модель,
-            год, государственный номер) и текст комментария. Также сохраняются технические данные: источник перехода (UTM)
-            и хеш IP-адреса — они нужны для защиты от спама.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="text-[18px] font-bold">2. Зачем мы их используем</h2>
-          <p className="mt-1 text-[var(--color-muted)]">
-            Исключительно для обработки заявки: подтверждение записи, согласование времени и связи с вами по вашему
-            автомобилю. Мы не используем данные для рекламы третьих лиц и не продаём их.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="text-[18px] font-bold">3. Кому передаются данные</h2>
-          <p className="mt-1 text-[var(--color-muted)]">
-            Карточка заявки передаётся сотруднику сервиса через мессенджер Telegram (сервис Telegram Messenger Inc.) —
-            это необходимо, чтобы подтвердить запись. Иным лицам данные не передаются, кроме случаев, предусмотренных
-            законодательством Республики Казахстан.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="text-[18px] font-bold">4. Срок хранения</h2>
-          <p className="mt-1 text-[var(--color-muted)]">
-            Данные хранятся не дольше, чем это необходимо для обслуживания и учёта, после чего персональные данные
-            обезличиваются. Срок хранения настраивается оператором.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="text-[18px] font-bold">5. Ваши права</h2>
-          <p className="mt-1 text-[var(--color-muted)]">
-            Вы можете отозвать согласие, запросить сведения об обработке, исправление или удаление своих данных.
-            Для этого позвоните по телефону {BUSINESS.phone.display} или напишите в WhatsApp. Согласие даётся при
-            отправке формы записи и может быть отозвано в любой момент.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="text-[18px] font-bold">6. Файлы cookie</h2>
-          <p className="mt-1 text-[var(--color-muted)]">
-            Сайт использует только технические cookie, необходимые для работы формы записи и (при включении) системы
-            веб-аналитики, которые считают обезличенную статистику посещений.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="text-[18px] font-bold">7. Оператор</h2>
-          <p className="mt-1 text-[var(--color-muted)]">
-            Автокомплекс «{BUSINESS.name}», адрес: {BUSINESS.address}, {BUSINESS.city}. Реквизиты оператора:{' '}
-            {LEGAL_ENTITY === 'TODO_OWNER' ? 'уточняются владельцем' : LEGAL_ENTITY}.
-          </p>
-        </section>
-
-        <p className="card p-4 text-[14px] text-[var(--color-muted)]">
-          TODO_OWNER: перед публикацией документ должен проверить юрист — заполнить реквизиты оператора, контакт для
-          обращений по персональным данным и точный срок хранения.
+        <h1 className="h2 mt-5">Обработка персональных данных</h1>
+        <p className="mt-3 text-[15px] text-[var(--color-muted)]">
+          Оператор: автокомплекс «{BUSINESS.name}», {BUSINESS.address}, {BUSINESS.city}. Телефон:{' '}
+          {BUSINESS.phone.display}.
+          {OWNER_INPUT.legalEntity ? ` ${OWNER_INPUT.legalEntity}` : ''}
         </p>
-      </div>
-    </main>
+
+        <div className="mt-8 grid gap-6 text-[16px] leading-relaxed text-[var(--color-chrome)]">
+          <section>
+            <h2 className="h3 text-[19px]">1. Какие данные мы собираем</h2>
+            <p className="mt-2 text-[var(--color-muted)]">
+              При онлайн-записи: имя, номер телефона, сведения об автомобиле (марка, модель, год, госномер), описание
+              проблемы и выбранные дата и время. Дополнительно сохраняется техническая информация: источник перехода
+              (UTM-метки) и обезличенный идентификатор устройства для защиты формы от спама.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="h3 text-[19px]">2. Зачем они нужны</h2>
+            <p className="mt-2 text-[var(--color-muted)]">
+              Только для обработки заявки: чтобы подтвердить запись, согласовать время визита и связаться с вами по
+              вашему автомобилю. Мы не используем данные для рассылок третьих лиц и не продаём их.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="h3 text-[19px]">3. Кому передаются данные</h2>
+            <p className="mt-2 text-[var(--color-muted)]">
+              Заявка видна сотрудникам сервиса. Если владелец подключил уведомления, копия карточки заявки
+              отправляется в защищённый чат сервиса Telegram (Telegram Messenger Inc.). Другим лицам данные не
+              передаются, кроме случаев, предусмотренных законодательством Республики Казахстан.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="h3 text-[19px]">4. Сколько храним</h2>
+            <p className="mt-2 text-[var(--color-muted)]">
+              Столько, сколько нужно для обслуживания и учёта. Данные о визитах старше двух лет могут быть обезличены.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="h3 text-[19px]">5. Ваши права</h2>
+            <p className="mt-2 text-[var(--color-muted)]">
+              Вы можете отозвать согласие, запросить сведения об обработке, исправление или удаление своих данных.
+              Для этого позвоните по номеру {BUSINESS.phone.display} или напишите в WhatsApp. Согласие даётся
+              галочкой при отправке формы и может быть отозвано в любой момент.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="h3 text-[19px]">6. Файлы cookie</h2>
+            <p className="mt-2 text-[var(--color-muted)]">
+              Сайт не использует рекламные или аналитические cookie. Технические cookie нужны только панели
+              сотрудников, чтобы держать сессию входа, и недоступны посетителям сайта.
+            </p>
+          </section>
+        </div>
+
+        <p className="card mt-8 p-5 text-[14px] text-[var(--color-muted)]">
+          Перед публикацией сайта текст политики стоит проверить у юриста и дополнить реквизитами компании: в
+          публичной карточке 2ГИС юридических данных нет, поэтому они здесь не указаны.
+        </p>
+      </main>
+
+      <Footer />
+    </>
   );
 }

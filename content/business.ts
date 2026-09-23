@@ -1,77 +1,123 @@
 /**
- * BUSIENSS DATA — the single source of truth about the business (§1 of the master prompt).
- * Facts below are taken from the public 2GIS card of «Керей» (Кокшетау) as of 2026-09-21.
- * NEVER invent facts here that are not confirmed by the owner (see §12).
+ * ЕДИНСТВЕННЫЙ ИСТОЧНИК ФАКТОВ О КОМПАНИИ.
+ *
+ * Всё ниже взято из публичной карточки 2ГИС «Керей» (Кокшетау):
+ * https://2gis.kz/kokshetau/firm/70000001034197419
+ * Данные карточки обновлены 2026-08-04, выгружены 2026-09-23.
+ *
+ * ПРАВИЛО: здесь не должно появляться ни одного факта, которого нет в карточке
+ * или который не подтвердил владелец. Всё неподтверждённое помечено как `null`
+ * или собрано в OWNER_INPUT.
  */
 
-export const TZ = 'Asia/Almaty';
-
-export type WhatsappContact = { display: string; wa: string };
+export const TWO_GIS = {
+  firmId: '70000001034197419',
+  card: 'https://2gis.kz/kokshetau/firm/70000001034197419',
+  reviews: 'https://2gis.kz/kokshetau/firm/70000001034197419/tab/reviews',
+  gallery: 'https://2gis.kz/kokshetau/gallery/firm/70000001034197419',
+  directions:
+    'https://2gis.kz/kokshetau/directions/points/%7C69.387408%2C53.274052%3B70000001034197419',
+} as const;
 
 export const BUSINESS = {
   name: 'Керей',
-  descriptor: 'автокомплекс',
+  kind: 'автокомплекс',
+  /** Основная рубрика карточки 2ГИС. */
+  rubric: 'Легковой автосервис',
+  /** Дополнительные рубрики карточки — из них собран каталог услуг (см. services.ts). */
+  subRubrics: [
+    'Ремонт ходовой части автомобиля',
+    'Ремонт бензиновых двигателей',
+    'Развал-схождение',
+    'Запчасти для иномарок',
+  ],
+
   city: 'Кокшетау',
-  address: 'ул. Шокана Уалиханова, 94',
+  address: 'улица Шокана Уалиханова, 94',
+  postcode: '20008',
+  /** Строительный код из карточки — нужен службам доставки. */
+  buildingCode: 'C01F6H5',
   geo: { lat: 53.274052, lon: 69.387408 },
-  timezone: TZ, // never hardcode a UTC offset
+
+  /** Расписание из карточки: Пн–Вс 08:30–21:00, без выходных. */
   hours: {
     text: 'Ежедневно 08:30–21:00',
     open: '08:30',
     close: '21:00',
-    weekdays: [1, 2, 3, 4, 5, 6, 7] as number[],
+    days: [1, 2, 3, 4, 5, 6, 7] as const,
   },
+
+  /** Телефон карточки. В карточке указано, что контакт-центр работает пн–вс 9:00–20:00. */
   phone: { display: '+7 705 206 21 64', e164: '+77052062164' },
+  phoneCenterHours: 'пн–вс 9:00–20:00',
+
+  /** Оба номера WhatsApp взяты из кнопок карточки. */
   whatsapp: [
     { display: '+7 705 206 21 64', wa: '77052062164' },
     { display: '+7 771 371 49 22', wa: '77713714922' },
-  ] as WhatsappContact[],
+  ] as const,
+
   instagram: { handle: 'kerey_007', url: 'https://instagram.com/kerey_007' },
-  twogis: {
-    card: 'https://2gis.kz/kokshetau/firm/70000001034197419',
-    reviews: 'https://2gis.kz/kokshetau/firm/70000001034197419/tab/reviews',
-    route: 'https://2gis.kz/kokshetau/directions/points/%7C69.387408%2C53.274052%3B70000001034197419',
-    rating: 4.9,
-    ratingsCount: 201,
-    reviewsCount: 132,
-    photosCount: 13,
-    asOf: '2026-09-21',
-  },
-  /**
-   * Brands from the 2GIS card (35). Rendered as plain text chips — no marque logos (§0.6).
-   * Do not add brands that are not in this list.
-   */
+
+  /** Способы оплаты из блока «Особенности» карточки. */
+  payment: ['Оплата картой', 'Наличный расчёт', 'Оплата через банк', 'Оплата по QR-коду'],
+
+  /** Марки из атрибутов «Авторемонт» карточки (35 марок). */
   brands: [
     'Audi', 'Chery', 'Chevrolet', 'Citroen', 'Daewoo', 'FAW', 'Fiat', 'Ford', 'Geely', 'Honda',
     'Hyundai', 'Infiniti', 'JAC', 'Kia', 'Lada (ВАЗ)', 'Lexus', 'Lifan', 'Mazda', 'Mercedes-Benz',
     'MINI', 'Mitsubishi', 'Nissan', 'Opel', 'Ravon', 'Renault', 'SEAT', 'Skoda', 'SsangYong',
     'Subaru', 'Suzuki', 'Toyota', 'Volkswagen', 'Volvo', 'ЗАЗ', 'УАЗ',
   ],
-  /** Map links for the contacts block. */
-  maps: {
-    google: 'https://www.google.com/maps/search/?api=1&query=53.274052,69.387408',
-    yandex: 'https://yandex.kz/maps/?pt=69.387408,53.274052&z=17&l=map',
-    osmEmbed:
-      'https://www.openstreetmap.org/export/embed.html?bbox=69.379408%2C53.270052%2C69.395408%2C53.278052&layer=mapnik&marker=53.274052%2C69.387408',
+
+  /** Ближайшая остановка из карточки. */
+  nearestStop: { name: 'Уалиханова', distance: '330 м', transport: 'автобус' },
+  /** В карточке отмечен один вход. */
+  entrances: 1,
+
+  /**
+   * Рейтинг и отзывы. Числа — из карточки на 2026-09-23:
+   * рейтинг филиала 4.9, оценок со звёздами 201, отзывов с текстом 132.
+   * Рейтинг принадлежит 2ГИС — на сайте он показывается со ссылкой на источник.
+   */
+  rating: {
+    value: 4.9,
+    outOf: 5,
+    ratingsCount: 201,
+    reviewsCount: 132,
+    source: '2ГИС',
+    cardState: 'Подтверждён',
+    asOf: '2026-09-23',
   },
+
+  /** Фото в карточке есть (14), но прямых ссылок на файлы карточка не отдаёт. */
+  photoCountIn2gis: 14,
 } as const;
 
-/** Owner has not provided legal entity details yet — footer shows a TODO placeholder. */
-export const LEGAL_ENTITY = 'TODO_OWNER' as const;
-
 /**
- * Texts that must stay empty until the owner confirms them (§12).
- * While a field is `null`, the corresponding block is hidden on the site.
+ * То, чего в карточке 2ГИС НЕТ. Пока поле пустое — соответствующий блок на сайте
+ * либо скрыт, либо показывает нейтральную формулировку «уточните у администратора».
+ * Заполняется владельцем (или через админку-заготовку в следующей итерации).
  */
-export const OWNER_TEXTS = {
+export const OWNER_INPUT = {
+  /** Описания компании в карточке нет — блок «О компании» собран только из рубрик и фактов. */
+  description: null as string | null,
+  /** Прайса в карточке нет: вкладка «Цены» пустая. */
+  priceList: null as string | null,
+  /** Сайта у компании нет — ссылки «Сайт» в карточке не найдено. */
+  website: null as string | null,
+  /** Награды/2GIS Awards у карточки отсутствуют. */
+  awards: null as string | null,
+  /** Гарантия на работы в карточке не заявлена. */
   warranty: null as string | null,
-  experience: null as string | null,
-  equipment: null as string | null,
+  /** Юридические реквизиты для футера. */
+  legalEntity: null as string | null,
 } as const;
 
 export const SEO = {
-  title: 'Керей — автокомплекс в Кокшетау | Запись на СТО онлайн',
+  title: 'Керей — автокомплекс в Кокшетау: ходовая, двигатель, развал-схождение',
   description:
-    'Автосервис «Керей» в Кокшетау: ремонт и обслуживание легковых автомобилей. Онлайн-запись за минуту, ежедневно 08:30–21:00. ул. Шокана Уалиханова, 94.',
-  keywords: 'автосервис Кокшетау, СТО Кокшетау, диагностика авто Кокшетау, авторемонт Кокшетау',
+    'Автокомплекс «Керей» в Кокшетау: ремонт ходовой части, ремонт бензиновых двигателей, развал-схождение, запчасти для иномарок. Рейтинг 4.9 в 2ГИС, 132 отзыва. Ежедневно 08:30–21:00, улица Шокана Уалиханова, 94. Онлайн-запись.',
+  keywords:
+    'автосервис Кокшетау, автокомплекс Керей, ремонт ходовой Кокшетау, развал-схождение Кокшетау, ремонт двигателя Кокшетау, запчасти для иномарок Кокшетау',
 } as const;

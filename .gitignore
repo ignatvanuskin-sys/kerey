@@ -5,7 +5,7 @@ build/
 dist/
 coverage/
 
-# local database
+# local data store (заявки клиентов — персональные данные)
 data/
 *.db
 *.db-journal
@@ -17,14 +17,12 @@ data/
 .env.local
 .env*.local
 
-# local backups (git bundles of previous history)
-.backup/
-*.bundle
+# исходники изображений (в репозиторий идут только готовые файлы из public/images)
+media-output/
 
 # misc
 .DS_Store
 Thumbs.db
 *.log
-npm-debug.log*
 next-env.d.ts
 tsconfig.tsbuildinfo

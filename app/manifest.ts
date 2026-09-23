@@ -1,17 +1,17 @@
 import type { MetadataRoute } from 'next';
 import { BUSINESS } from '@/content/business';
 
-/** PWA-манифест: сайт добавляется на домашний экран телефона (§11). */
+/** Веб-манифест: сайт можно добавить на домашний экран телефона. */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: `${BUSINESS.name} — ${BUSINESS.descriptor}, ${BUSINESS.city}`,
-    short_name: BUSINESS.name,
+    name: `Керей — ${BUSINESS.kind}, ${BUSINESS.city}`,
+    short_name: 'Керей',
     description:
-      'Ремонт и обслуживание легковых автомобилей в Кокшетау. Онлайн-запись на сервис, ежедневно 08:30–21:00.',
+      'Ремонт ходовой части, ремонт бензиновых двигателей, развал-схождение и запчасти для иномарок в Кокшетау. Онлайн-запись.',
     start_url: '/',
     display: 'standalone',
-    background_color: '#0E0F11',
-    theme_color: '#0E0F11',
+    background_color: '#0B0C0E',
+    theme_color: '#0B0C0E',
     lang: 'ru',
     icons: [{ src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
   };

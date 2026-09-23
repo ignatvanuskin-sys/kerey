@@ -1,52 +1,56 @@
-import type { NextRequest } from 'next/server';
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import {
   ADMIN_COOKIE,
-  createSessionToken,
-  hashIp,
-  isAdminConfigured,
   LOGIN_MAX_ATTEMPTS,
-  LOGIN_WINDOW_SECONDS,
+  LOGIN_WINDOW_MS,
+  adminConfigured,
+  createSessionToken,
+  ipHash,
   sessionCookieOptions,
   verifyPassword,
 } from '@/lib/auth';
-import { clientIp, isSameOrigin, jsonError, jsonOk } from '@/lib/http';
-import { hitRateLimit, rateLimitCount } from '@/db/repo';
-import { audit } from '@/lib/settings-store';
+import { hitLimit } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** POST /api/admin/login — single owner password, 5 failed attempts / 15 min / IP (§8). */
-export async function POST(request: NextRequest): Promise<NextResponse | Response> {
-  if (!isSameOrigin(request)) return jsonError(403, 'Запрос отклонён.');
-  if (!isAdminConfigured()) {
-    return jsonError(503, 'ADMIN_PASSWORD не задан на сервере. Задайте переменную окружения.');
+function clientIp(request: NextRequest): string {
+  const forwarded = request.headers.get('x-forwarded-for');
+  if (forwarded) return forwarded.split(',')[0]!.trim();
+  return request.headers.get('x-real-ip')?.trim() || '0.0.0.0';
+}
+
+/** POST /api/admin/login — вход в панель. 5 неудачных попыток за 15 минут на адрес. */
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  if (!adminConfigured()) {
+    return NextResponse.json(
+      { ok: false, message: 'Пароль не задан на сервере: добавьте ADMIN_PASSWORD в .env' },
+      { status: 503 },
+    );
   }
 
   const ip = clientIp(request);
-  const key = `admin_login:${hashIp(ip)}`;
-
-  if (rateLimitCount(key, LOGIN_WINDOW_SECONDS) >= LOGIN_MAX_ATTEMPTS) {
-    return jsonError(429, 'Слишком много попыток входа. Попробуйте через 15 минут.');
+  const limit = hitLimit(`login:${ipHash(ip)}`, LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW_MS);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { ok: false, message: 'Слишком много попыток входа. Попробуйте через 15 минут.' },
+      { status: 429, headers: { 'Retry-After': String(limit.retryAfterSec) } },
+    );
   }
 
   let password = '';
   try {
-    const body = (await request.json()) as { password?: string };
-    password = String(body.password ?? '');
+    const body = (await request.json()) as { password?: unknown };
+    password = typeof body.password === 'string' ? body.password : '';
   } catch {
-    return jsonError(422, 'Некорректный запрос.');
+    return NextResponse.json({ ok: false, message: 'Некорректный запрос' }, { status: 400 });
   }
 
   if (!verifyPassword(password)) {
-    hitRateLimit(key, LOGIN_WINDOW_SECONDS);
-    audit('admin_login_failed', 'admin');
-    return jsonError(401, 'Неверный пароль.');
+    return NextResponse.json({ ok: false, message: 'Неверный пароль' }, { status: 401 });
   }
 
-  audit('admin_login_ok', 'admin');
-  const response = jsonOk({ ok: true });
+  const response = NextResponse.json({ ok: true });
   response.cookies.set(ADMIN_COOKIE, createSessionToken(), sessionCookieOptions);
   return response;
 }

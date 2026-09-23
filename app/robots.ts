@@ -1,15 +1,16 @@
 import type { MetadataRoute } from 'next';
-import { publicBaseUrl } from '@/lib/env';
+import { siteUrl } from '@/lib/site-url';
 
 export default function robots(): MetadataRoute.Robots {
-  const base = publicBaseUrl();
+  const base = siteUrl();
+
   return {
     rules: [
       {
         userAgent: '*',
         allow: '/',
-        // Booking pages contain personal links; the admin panel must never be indexed (§11).
-        disallow: ['/admin', '/admin/', '/booking/', '/api/'],
+        // В панели заявок персональные данные клиентов — индексировать нельзя.
+        disallow: ['/admin', '/admin/', '/api/'],
       },
     ],
     sitemap: `${base}/sitemap.xml`,

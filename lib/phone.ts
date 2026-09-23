@@ -1,36 +1,34 @@
 /**
- * Phone normalisation for KZ/RU (§10): accepts 8XXXXXXXXXX, 7XXXXXXXXXX, +7 (XXX) … and
- * the bare local number, and always returns E.164. Anything else is rejected.
+ * Телефон. Принимаем казахстанские и российские номера и приводим их к виду +7XXXXXXXXXX.
+ * Всё, что не похоже на номер, отклоняется — иначе в заявке окажется «12345».
  */
 
-const E164_KZ = /^\+7\d{10}$/;
+const E164 = /^\+7\d{10}$/;
 
+/** Возвращает +7XXXXXXXXXX или null, если номер неверный. */
 export function normalizePhone(input: string | null | undefined): string | null {
   if (!input) return null;
   const digits = input.replace(/\D+/g, '');
   if (!digits) return null;
 
   let national: string | null = null;
-
   if (digits.length === 10) {
     national = digits;
-  } else if (digits.length === 11) {
-    if (digits.startsWith('8') || digits.startsWith('7')) {
-      national = digits.slice(1);
-    }
+  } else if (digits.length === 11 && (digits.startsWith('8') || digits.startsWith('7'))) {
+    national = digits.slice(1);
   } else if (digits.length === 12 && digits.startsWith('7')) {
     national = digits.slice(1);
   }
 
   if (!national) return null;
-  // Mobile / landline ranges in use: 6xx, 7xx (KZ) and 9xx (RU/KZ).
+  // Мобильные и городские диапазоны KZ/RU: 6xx, 7xx, 9xx.
   if (!/^[679]\d{9}$/.test(national)) return null;
 
   const e164 = `+7${national}`;
-  return E164_KZ.test(e164) ? e164 : null;
+  return E164.test(e164) ? e164 : null;
 }
 
-/** +77052062164 → "+7 705 206 21 64" */
+/** +77052062164 → «+7 705 206 21 64» */
 export function formatPhone(e164: string | null | undefined): string {
   if (!e164) return '';
   const digits = e164.replace(/\D+/g, '');
@@ -39,12 +37,12 @@ export function formatPhone(e164: string | null | undefined): string {
   return `+7 ${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6, 8)} ${n.slice(8, 10)}`;
 }
 
-/** Digits for wa.me links: +77052062164 → 77052062164 */
-export function waDigits(e164: string | null | undefined): string {
-  return (e164 ?? '').replace(/\D+/g, '');
+/** Цифры для ссылок wa.me */
+export function waDigits(phone: string | null | undefined): string {
+  return (phone ?? '').replace(/\D+/g, '');
 }
 
-/** Progressive mask used while typing: +7 (705) 206-21-64 */
+/** Маска для ввода: «+7 (705) 206-21-64» */
 export function maskPhoneInput(raw: string): string {
   let digits = raw.replace(/\D+/g, '');
   if (digits.startsWith('8')) digits = `7${digits.slice(1)}`;
@@ -61,7 +59,7 @@ export function maskPhoneInput(raw: string): string {
   return out;
 }
 
-/** Logs must never contain raw personal data (§10). */
+/** Телефоны клиентов не должны попадать в логи в открытом виде. */
 export function maskPhoneForLog(phone: string | null | undefined): string {
   const digits = (phone ?? '').replace(/\D+/g, '');
   if (digits.length < 8) return '***';

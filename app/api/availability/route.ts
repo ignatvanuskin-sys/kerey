@@ -1,36 +1,35 @@
-import type { NextRequest } from 'next/server';
-import { getSlotsForDate, slotsContext } from '@/db/bookings';
-import { getService } from '@/db/repo';
-import { publicSlots } from '@/lib/availability';
-import { jsonError, noStore } from '@/lib/http';
+import { NextResponse, type NextRequest } from 'next/server';
+import { getAvailableSlots, getDatesAvailability } from '@/lib/booking';
+import { findService } from '@/content/services';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** GET /api/availability?date=YYYY-MM-DD&serviceId=3 */
-export async function GET(request: NextRequest): Promise<Response> {
+/**
+ * GET /api/availability?date=YYYY-MM-DD&service=suspension — свободное время.
+ * Без параметра date возвращает, в какие дни есть свободные слоты (для календаря).
+ */
+export async function GET(request: NextRequest): Promise<NextResponse> {
   const params = new URL(request.url).searchParams;
-  const date = params.get('date') ?? '';
-  const serviceIdRaw = params.get('serviceId');
+  const serviceSlug = params.get('service') ?? 'car-service';
 
-  if (!DATE_RE.test(date)) return jsonError(422, 'Некорректная дата.');
+  if (!findService(serviceSlug)) {
+    return NextResponse.json({ ok: false, message: 'Неизвестная услуга' }, { status: 422 });
+  }
 
-  const serviceId = serviceIdRaw ? Number(serviceIdRaw) : null;
-  const service = serviceId && Number.isFinite(serviceId) ? getService(serviceId) : null;
-  const durationMin = service?.duration_min ?? 60;
+  const date = params.get('date');
 
-  const ctx = slotsContext(date);
-  const slots = getSlotsForDate(date, durationMin);
+  if (!date) {
+    const days = await getDatesAvailability(serviceSlug);
+    return NextResponse.json({ ok: true, days }, { headers: { 'Cache-Control': 'no-store' } });
+  }
 
-  return noStore({
-    date,
-    durationMin,
-    hours: ctx.hours,
-    dayOff: ctx.dayOff
-      ? { openFrom: ctx.dayOff.open_from, openTo: ctx.dayOff.open_to, reason: ctx.dayOff.reason }
-      : null,
-    slots: publicSlots(slots),
-  });
+  if (!DATE_RE.test(date)) {
+    return NextResponse.json({ ok: false, message: 'Некорректная дата' }, { status: 422 });
+  }
+
+  const slots = await getAvailableSlots(date, serviceSlug);
+  return NextResponse.json({ ok: true, date, slots }, { headers: { 'Cache-Control': 'no-store' } });
 }

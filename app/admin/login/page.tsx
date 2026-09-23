@@ -1,20 +1,21 @@
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { isAdminRequest } from '@/lib/auth';
-import LoginForm from '@/components/admin/LoginForm';
-import { BUSINESS } from '@/content/business';
+import { isAdmin } from '@/lib/auth';
+import AdminLogin from '@/components/admin/AdminLogin';
 
 export const dynamic = 'force-dynamic';
 
+export const metadata: Metadata = {
+  title: 'Вход в панель заявок',
+  robots: { index: false, follow: false },
+};
+
 export default async function AdminLoginPage() {
-  if (await isAdminRequest()) redirect('/admin/bookings');
+  if (await isAdmin()) redirect('/admin');
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-[420px] flex-col justify-center px-4 py-10">
-      <h1 className="h2">Админка «{BUSINESS.name}»</h1>
-      <p className="mt-2 text-[15px] text-[var(--color-muted)]">Введите пароль владельца.</p>
-      <div className="card mt-5 p-5">
-        <LoginForm />
-      </div>
+    <main className="container-x flex min-h-dvh max-w-[440px] flex-col justify-center py-12">
+      <AdminLogin />
     </main>
   );
 }

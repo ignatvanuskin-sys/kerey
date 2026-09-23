@@ -1,12 +1,12 @@
 'use client';
 
 import { useId, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Plus } from 'lucide-react';
+import { cn } from '@/lib/cn';
 
 export type AccordionItem = { question: string; answer: string };
 
-/** Accessible accordion: real buttons, aria-expanded/aria-controls, keyboard operable (§5). */
+/** Аккордеон на нативных кнопках: работает с клавиатуры и со скринридером. */
 export default function Accordion({ items }: { items: AccordionItem[] }) {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
   const baseId = useId();
@@ -17,6 +17,7 @@ export default function Accordion({ items }: { items: AccordionItem[] }) {
         const open = openIndex === index;
         const panelId = `${baseId}-panel-${index}`;
         const buttonId = `${baseId}-button-${index}`;
+
         return (
           <div key={item.question}>
             <h3 className="m-0">
@@ -25,12 +26,17 @@ export default function Accordion({ items }: { items: AccordionItem[] }) {
                 type="button"
                 aria-expanded={open}
                 aria-controls={panelId}
-                className="flex min-h-[56px] w-full items-center justify-between gap-3 px-4 py-4 text-left text-[17px] font-semibold hover:text-[var(--color-accent)] md:px-5"
                 onClick={() => setOpenIndex(open ? null : index)}
+                className="flex min-h-[62px] w-full items-center justify-between gap-4 px-5 py-4 text-left transition-colors hover:text-[var(--color-accent)] md:px-7"
               >
-                <span>{item.question}</span>
-                <ChevronDown
-                  className={cn('size-5 shrink-0 transition-transform duration-200', open && 'rotate-180')}
+                <span className="font-[family-name:var(--font-display)] text-[17px] uppercase leading-snug tracking-[0.01em]">
+                  {item.question}
+                </span>
+                <Plus
+                  className={cn(
+                    'size-5 shrink-0 text-[var(--color-accent)] transition-transform duration-200',
+                    open && 'rotate-45',
+                  )}
                   aria-hidden="true"
                 />
               </button>
@@ -40,7 +46,7 @@ export default function Accordion({ items }: { items: AccordionItem[] }) {
               role="region"
               aria-labelledby={buttonId}
               hidden={!open}
-              className="px-4 pb-5 text-[15px] leading-relaxed text-[var(--color-muted)] md:px-5"
+              className="px-5 pb-6 text-[15px] leading-relaxed text-[var(--color-muted)] md:px-7"
             >
               {item.answer}
             </div>

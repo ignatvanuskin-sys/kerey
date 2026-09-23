@@ -1,524 +1,467 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import Link from 'next/link';
-import { CircleCheck, Clock, MapPin, MessageCircle, Phone, Shield, Wrench } from 'lucide-react';
-import { BUSINESS, LEGAL_ENTITY } from '@/content/business';
-import { formatKzt } from '@/lib/utils';
-import { formatLocal } from '@/lib/tz';
-import { computeOpenStatus } from '@/lib/open-status';
-import type { PhotoRow, ReviewRow, ServiceRow } from '@/db/repo';
-import type { Settings } from '@/lib/settings';
-import { effectiveContacts } from '@/lib/settings';
-import type { DayOffRow } from '@/lib/settings-store';
+import { CircleCheck, Clock, CreditCard, MapPin, Phone, Star, Wrench } from 'lucide-react';
+import { BUSINESS, OWNER_INPUT, TWO_GIS } from '@/content/business';
+import { SERVICES, priceLabel, type Service } from '@/content/services';
+import { REVIEWS, REVIEWS_AS_OF, REVIEWS_SOURCE_URL } from '@/content/reviews';
+import { FAQ } from '@/content/faq';
+import { ratingsWord, reviewsWord, humanDate, humanDuration } from '@/lib/format';
+import Reveal from '@/components/ui/Reveal';
 import BookButton from '@/components/booking/BookButton';
-import TrackedLink from '@/components/site/TrackedLink';
-import OpenStatus from '@/components/site/OpenStatus';
-import Accordion, { type AccordionItem } from '@/components/site/Accordion';
+import Accordion from '@/components/site/Accordion';
 import MapEmbed from '@/components/site/MapEmbed';
-import { ServiceIcon } from '@/components/site/icons';
+import GalleryGrid from '@/components/site/GalleryGrid';
+import ServiceIcon from '@/components/site/ServiceIcon';
 
-type Contacts = ReturnType<typeof effectiveContacts>;
+/* ------------------------------- служебное ------------------------------- */
 
-function SectionTitle({ id, title, subtitle }: { id?: string; title: string; subtitle?: string }) {
+export function SectionHeading({
+  eyebrow,
+  title,
+  subtitle,
+  id,
+}: {
+  eyebrow: string;
+  title: string;
+  subtitle?: string;
+  id?: string;
+}) {
   return (
-    <header className="mb-6 md:mb-8">
-      <h2 id={id} className="h2">
+    <div className="mb-9 max-w-3xl md:mb-12">
+      <p className="eyebrow">{eyebrow}</p>
+      <h2 id={id} className="h2 mt-4">
         {title}
       </h2>
-      {subtitle ? <p className="mt-2 max-w-2xl text-[16px] text-[var(--color-muted)]">{subtitle}</p> : null}
-    </header>
+      {subtitle ? <p className="mt-4 text-[16px] leading-relaxed text-[var(--color-muted)]">{subtitle}</p> : null}
+    </div>
   );
 }
 
-/* ---------------------------------- hero ---------------------------------- */
-
-function heroVisual(): React.ReactNode {
-  const photoPath = path.join(process.cwd(), 'public', 'images', 'hero.jpg');
-  if (fs.existsSync(photoPath)) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src="/images/hero.jpg"
-        alt={`${BUSINESS.name} — ${BUSINESS.descriptor} в ${BUSINESS.city}`}
-        width={1200}
-        height={800}
-        className="h-full w-full rounded-[var(--radius-card)] object-cover"
-        fetchPriority="high"
-      />
-    );
-  }
-
+function Stars({ rating }: { rating: number }) {
   return (
-    <svg
-      viewBox="0 0 480 260"
-      role="img"
-      aria-label="Схематичный силуэт легкового автомобиля"
-      className="h-full w-full"
-    >
-      <defs>
-        <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
-          <path d="M24 0H0v24" fill="none" stroke="#2A2E34" strokeWidth="1" />
-        </pattern>
-        <linearGradient id="body" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#FF5A1F" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="#FF5A1F" stopOpacity="0.02" />
-        </linearGradient>
-      </defs>
-      <rect width="480" height="260" fill="url(#grid)" />
-      <path d="M60 190 H420" stroke="#2A2E34" strokeWidth="2" strokeDasharray="10 10" />
-      <path
-        d="M96 186c0-14 6-24 16-27l20-38c5-9 14-14 24-14h108c11 0 21 5 27 14l24 38c12 3 20 13 20 27v6H96z"
-        fill="url(#body)"
-        stroke="#FF5A1F"
-        strokeWidth="2.5"
-      />
-      <path d="M150 147l22-32h58v32zM246 115h52l20 32h-72z" fill="#0E0F11" stroke="#FF5A1F" strokeWidth="2" />
-      <circle cx="156" cy="190" r="24" fill="#0E0F11" stroke="#FF5A1F" strokeWidth="2.5" />
-      <circle cx="156" cy="190" r="9" fill="#2A2E34" stroke="#FF5A1F" strokeWidth="2" />
-      <circle cx="352" cy="190" r="24" fill="#0E0F11" stroke="#FF5A1F" strokeWidth="2.5" />
-      <circle cx="352" cy="190" r="9" fill="#2A2E34" stroke="#FF5A1F" strokeWidth="2" />
-      <circle cx="240" cy="86" r="30" fill="none" stroke="#FF5A1F" strokeWidth="2" strokeDasharray="6 8" opacity="0.7" />
-    </svg>
+    <span className="inline-flex gap-0.5" role="img" aria-label={`Оценка ${rating} из 5`}>
+      {[1, 2, 3, 4, 5].map((value) => (
+        <Star
+          key={value}
+          className={
+            value <= rating
+              ? 'size-4 fill-[var(--color-accent)] text-[var(--color-accent)]'
+              : 'size-4 text-[var(--color-line-strong)]'
+          }
+          aria-hidden="true"
+        />
+      ))}
+    </span>
   );
 }
 
-export function HeroSection({ contacts, settings, daysOff }: { contacts: Contacts; settings: Settings; daysOff: DayOffRow[] }) {
-  const today = formatLocal(new Date(), 'yyyy-MM-dd');
-  const dayOffToday = daysOff.find((row) => row.local_date === today) ?? null;
-  const initialStatus = computeOpenStatus(settings, dayOffToday, new Date());
+/* -------------------------------- услуги --------------------------------- */
 
+function ServiceCard({ service, index }: { service: Service; index: number }) {
   return (
-    <section className="relative overflow-hidden border-b border-[var(--color-line)]">
-      <div className="ornament pointer-events-none absolute inset-0" aria-hidden="true" />
-      <div className="container-x relative grid items-center gap-8 py-10 md:grid-cols-2 md:py-16">
-        <div>
-          <h1 className="h1">Автосервис в Кокшетау — запись онлайн за минуту</h1>
-          <p className="mt-4 max-w-xl text-[17px] text-[var(--color-muted)]">
-            Ремонт и обслуживание легковых авто. Выберите время — мы подтвердим запись по телефону или в WhatsApp.
-          </p>
+    <Reveal delay={index * 60} className="h-full">
+      <article className="group card flex h-full flex-col gap-4 p-6 transition-all duration-200 hover:-translate-y-1 hover:border-[var(--color-accent)]/60 hover:shadow-[0_20px_50px_-30px_rgba(255,90,31,0.55)]">
+        <span className="flex size-11 items-center justify-center rounded-[10px] border border-[var(--color-line)] bg-[var(--color-surface-2)] text-[var(--color-accent)] transition-colors group-hover:border-[var(--color-accent)]/50">
+          <ServiceIcon name={service.icon} className="size-6" />
+        </span>
 
-          <div className="mt-6 flex flex-wrap gap-3">
-            <BookButton label="Записаться онлайн" source="hero" className="grow sm:grow-0" />
-            <TrackedLink
-              href={`https://wa.me/${contacts.whatsapp[0].wa}`}
-              event="click_whatsapp"
-              external
-              className="btn btn-secondary grow sm:grow-0"
-            >
-              <MessageCircle className="size-5" aria-hidden="true" />
-              Написать в WhatsApp
-            </TrackedLink>
-          </div>
+        <h3 className="h3 text-[19px] leading-tight">{service.title}</h3>
+        <p className="grow text-[15px] leading-relaxed text-[var(--color-muted)]">{service.summary}</p>
 
-          <div className="mt-6 flex flex-wrap gap-2">
-            <TrackedLink
-              href={BUSINESS.twogis.reviews}
-              event="click_2gis_reviews"
-              external
-              className="chip"
-              ariaLabel="Отзывы о Керей в 2ГИС"
-            >
-              ★ {BUSINESS.twogis.rating.toLocaleString('ru-RU')} в 2ГИС · {BUSINESS.twogis.ratingsCount} оценок
-            </TrackedLink>
-            <OpenStatus settings={settings} dayOffToday={dayOffToday} initial={initialStatus} />
-            <span className="chip">
-              <MapPin className="size-4 text-[var(--color-accent)]" aria-hidden="true" />
-              {contacts.address}
-            </span>
-          </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-line)] pt-4">
+          <span className="text-[14px] text-[var(--color-chrome)]">{priceLabel(service)}</span>
+          <span className="text-[13px] text-[var(--color-muted)]">приём ≈ {humanDuration(service.durationMin)}</span>
         </div>
 
-        <div className="relative aspect-[480/260] w-full">{heroVisual()}</div>
-      </div>
-    </section>
+        <BookButton
+          serviceSlug={service.slug}
+          label="Записаться"
+          withIcon={false}
+          className="!min-h-[46px] w-full !text-[15px]"
+        />
+      </article>
+    </Reveal>
   );
 }
 
-/* -------------------------------- services -------------------------------- */
-
-export function ServicesSection({ services }: { services: ServiceRow[] }) {
+export function ServicesSection() {
   return (
-    <section id="services" className="scroll-mt-24 py-12 md:py-16" aria-labelledby="services-title">
+    <section id="services" aria-labelledby="services-title" className="scroll-mt-24 py-16 md:py-24">
       <div className="container-x">
-        <SectionTitle
+        <SectionHeading
           id="services-title"
-          title="Услуги"
-          subtitle="Выберите, что нужно сделать. Если не уверены — запишитесь на диагностику, мастер разберётся на месте."
+          eyebrow="Услуги"
+          title="Чем занимается сервис"
+          subtitle="Направления работ по данным карточки 2ГИС. Прайса у компании нет — стоимость зависит от неисправности и запчастей, её называют после осмотра."
         />
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {services.map((service) => {
-            const price = formatKzt(service.price_from);
-            return (
-              <article key={service.id} className="card flex flex-col gap-3 p-4">
-                <ServiceIcon name={service.icon} className="size-7 text-[var(--color-accent)]" />
-                <h3 className="text-[18px] font-bold">{service.title}</h3>
-                <p className="grow text-[15px] text-[var(--color-muted)]">{service.short_description}</p>
-                <p className="text-[15px] font-semibold">
-                  {price ? `от ${price}` : (service.price_note ?? 'по результатам диагностики')}
-                </p>
-                <BookButton
-                  serviceSlug={service.slug}
-                  label="Записаться"
-                  variant="secondary"
-                  withIcon={false}
-                  source="service_card"
-                  className="!min-h-[44px]"
-                />
-              </article>
-            );
-          })}
-
-          <article className="card flex flex-col gap-3 border-dashed p-4">
-            <Wrench className="size-7 text-[var(--color-accent)]" aria-hidden="true" />
-            <h3 className="text-[18px] font-bold">Не знаете, что сломалось?</h3>
-            <p className="grow text-[15px] text-[var(--color-muted)]">
-              Запишитесь на диагностику — мастер осмотрит автомобиль и объяснит, что нужно делать.
-            </p>
-            <BookButton
-              label="Записаться на диагностику"
-              variant="secondary"
-              withIcon={false}
-              source="service_unknown"
-              className="!min-h-[44px]"
-            />
-          </article>
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {SERVICES.map((service, index) => (
+            <ServiceCard key={service.slug} service={service} index={index} />
+          ))}
         </div>
-      </div>
-    </section>
-  );
-}
 
-/* ---------------------------------- how ---------------------------------- */
-
-const STEPS = [
-  { title: 'Выберите услугу', text: 'Если не уверены — подойдёт диагностика.' },
-  { title: 'Выберите время', text: 'Свободные слоты на три недели вперёд.' },
-  { title: 'Мы подтвердим', text: 'Позвоним или напишем в WhatsApp.' },
-  { title: 'Приезжайте', text: `${BUSINESS.address} — ждём вас.` },
-];
-
-export function StepsSection() {
-  return (
-    <section id="how" className="scroll-mt-24 border-y border-[var(--color-line)] bg-[var(--color-surface)] py-12 md:py-16">
-      <div className="container-x">
-        <SectionTitle id="how-title" title="Как записаться" subtitle="Четыре шага, около минуты времени." />
-        <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {STEPS.map((step, index) => (
-            <li key={step.title} className="card flex gap-3 p-4">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent)] font-extrabold text-[var(--color-accent-ink)]">
-                {index + 1}
-              </span>
-              <span>
-                <span className="block font-bold">{step.title}</span>
-                <span className="mt-1 block text-[15px] text-[var(--color-muted)]">{step.text}</span>
-              </span>
-            </li>
-          ))}
-        </ol>
-      </div>
-    </section>
-  );
-}
-
-/* --------------------------------- brands -------------------------------- */
-
-export function BrandsSection() {
-  return (
-    <section id="brands" className="scroll-mt-24 py-12 md:py-16" aria-labelledby="brands-title">
-      <div className="container-x">
-        <SectionTitle id="brands-title" title="Обслуживаем марки" />
-        <ul className="flex flex-wrap gap-2">
-          {BUSINESS.brands.map((brand) => (
-            <li key={brand} className="chip">
-              {brand}
-            </li>
-          ))}
-        </ul>
-        <p className="mt-4 text-[15px] text-[var(--color-muted)]">
-          Вашей марки нет в списке?{' '}
-          <TrackedLink
-            href={`https://wa.me/${BUSINESS.whatsapp[0].wa}`}
-            event="click_whatsapp"
-            external
-            className="underline"
-          >
-            Напишите в WhatsApp
-          </TrackedLink>{' '}
-          или позвоните — уточним.
+        <p className="mt-6 text-[14px] text-[var(--color-muted)]">
+          Не нашли нужную работу? Опишите проблему в заявке — мастер посмотрит автомобиль и скажет, что делать.
         </p>
       </div>
     </section>
   );
 }
 
-/* --------------------------------- why us -------------------------------- */
+/* ---------------------------- как это работает --------------------------- */
 
-export function WhyUsSection({ settings }: { settings: Settings }) {
-  const facts = [
+const STEPS = [
+  { title: 'Выбираете услугу', text: 'Ходовая, двигатель, развал-схождение или «не знаю, что сломалось».' },
+  { title: 'Выбираете время', text: 'Свободные слоты видны сразу — работаем ежедневно 08:30–21:00.' },
+  { title: 'Оставляете контакты', text: 'Имя и телефон. Больше ничего заполнять не нужно.' },
+  { title: 'Получаете подтверждение', text: 'Мы связываемся и подтверждаем время приезда.' },
+];
+
+export function HowItWorksSection() {
+  return (
+    <section id="how" aria-labelledby="how-title" className="scroll-mt-24 border-y border-[var(--color-line)] bg-[var(--color-surface)] py-16 md:py-24">
+      <div className="container-x">
+        <SectionHeading eyebrow="Как записаться" title="Четыре шага и одна минута" id="how-title" />
+
+        <ol className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {STEPS.map((step, index) => (
+            <li key={step.title} className="h-full">
+              <Reveal delay={index * 70} className="h-full border-t border-[var(--color-line-strong)] pt-5">
+                <span className="font-[family-name:var(--font-display)] text-[34px] leading-none text-[var(--color-accent)]">
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                <h3 className="h3 mt-3 text-[18px]">{step.title}</h3>
+                <p className="mt-2 text-[15px] leading-relaxed text-[var(--color-muted)]">{step.text}</p>
+              </Reveal>
+            </li>
+          ))}
+        </ol>
+
+        <div className="mt-10">
+          <BookButton label="Записаться онлайн" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* --------------------------- почему выбирают ----------------------------- */
+
+type Advantage = { icon: typeof Wrench; title: string; text: string; href?: string };
+
+function advantages(): Advantage[] {
+  return [
     {
-      icon: <Shield className="size-6 text-[var(--color-accent)]" aria-hidden="true" />,
-      title: `Рейтинг ${BUSINESS.twogis.rating.toLocaleString('ru-RU')} в 2ГИС`,
-      text: `${BUSINESS.twogis.ratingsCount} оценок и ${BUSINESS.twogis.reviewsCount} отзывов на ${formatLocalDay(BUSINESS.twogis.asOf)}.`,
+      icon: Star,
+      title: `${BUSINESS.rating.value.toLocaleString('ru-RU')} в ${BUSINESS.rating.source}`,
+      text: `${ratingsWord(BUSINESS.rating.ratingsCount)} и ${reviewsWord(BUSINESS.rating.reviewsCount)} в карточке компании. Статус «${BUSINESS.rating.cardState}».`,
+      href: TWO_GIS.reviews,
     },
     {
-      icon: <Clock className="size-6 text-[var(--color-accent)]" aria-hidden="true" />,
-      title: 'Работаем каждый день',
-      text: `${BUSINESS.hours.text}`,
+      icon: Clock,
+      title: 'Работаем без выходных',
+      text: `${BUSINESS.hours.text}. Записаться можно на сегодня или на любую дату вперёд.`,
     },
     {
-      icon: <Wrench className="size-6 text-[var(--color-accent)]" aria-hidden="true" />,
-      title: `${BUSINESS.brands.length} марок в работе`,
-      text: 'Легковые автомобили популярных марок — от бюджетных до премиальных.',
+      icon: Wrench,
+      title: 'Профильные направления',
+      text: `${BUSINESS.subRubrics.join(', ')} — этим сервис занимается по данным 2ГИС.`,
     },
     {
-      icon: <CircleCheck className="size-6 text-[var(--color-accent)]" aria-hidden="true" />,
-      title: 'Онлайн-запись',
-      text: 'Свободное время видно сразу, подтверждение приходит в течение дня.',
+      icon: CreditCard,
+      title: 'Удобная оплата и запчасти',
+      text: `${BUSINESS.payment.join(', ')}. Здесь же можно подобрать запчасти для иномарок.`,
     },
   ];
+}
 
-  const ownerTexts = [
-    { title: 'Гарантия', text: settings.texts.warranty },
-    { title: 'Опыт', text: settings.texts.experience },
-    { title: 'Оборудование', text: settings.texts.equipment },
-  ].filter((item) => item.text && item.text.trim().length > 0);
-
+export function WhyUsSection() {
   return (
-    <section id="why" className="scroll-mt-24 border-y border-[var(--color-line)] bg-[var(--color-surface)] py-12 md:py-16">
+    <section id="why" aria-labelledby="why-title" className="scroll-mt-24 py-16 md:py-24">
       <div className="container-x">
-        <SectionTitle id="why-title" title="Почему выбирают нас" />
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {facts.map((fact) => (
-            <article key={fact.title} className="card p-4">
-              {fact.icon}
-              <h3 className="mt-3 text-[17px] font-bold">{fact.title}</h3>
-              <p className="mt-1 text-[15px] text-[var(--color-muted)]">{fact.text}</p>
-            </article>
-          ))}
-        </div>
+        <SectionHeading
+          id="why-title"
+          eyebrow={`Почему ${BUSINESS.name}`}
+          title="Что подтверждается карточкой 2ГИС"
+          subtitle="Мы не пишем «гарантия качества» и «опыт 20 лет»: таких данных о компании нет. Ниже — только то, что можно проверить по карточке."
+        />
 
-        {ownerTexts.length > 0 ? (
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {ownerTexts.map((item) => (
-              <article key={item.title} className="card p-4">
-                <h3 className="text-[17px] font-bold">{item.title}</h3>
-                <p className="mt-1 text-[15px] text-[var(--color-muted)]">{item.text}</p>
-              </article>
-            ))}
-          </div>
-        ) : null}
+        <div className="grid gap-5 sm:grid-cols-2">
+          {advantages().map((item, index) => {
+            const Icon = item.icon;
+            return (
+              <Reveal key={item.title} delay={index * 60}>
+                <article className="card flex h-full gap-4 p-6">
+                  <span className="flex size-11 shrink-0 items-center justify-center rounded-[10px] border border-[var(--color-line)] bg-[var(--color-surface-2)] text-[var(--color-accent)]">
+                    <Icon className="size-5" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <h3 className="h3 text-[18px]">{item.title}</h3>
+                    <p className="mt-2 text-[15px] leading-relaxed text-[var(--color-muted)]">{item.text}</p>
+                    {item.href ? (
+                      <a
+                        href={item.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-3 inline-block text-[14px] font-semibold text-[var(--color-accent)] underline-offset-4 hover:underline"
+                      >
+                        Смотреть отзывы в 2ГИС →
+                      </a>
+                    ) : null}
+                  </div>
+                </article>
+              </Reveal>
+            );
+          })}
+        </div>
       </div>
     </section>
   );
 }
 
-function formatLocalDay(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('ru-RU', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  });
-}
+/* ------------------------------- соцдоказательство ----------------------- */
 
-/* --------------------------------- reviews -------------------------------- */
-
-export function ReviewsSection({ reviews }: { reviews: ReviewRow[] }) {
+export function ReviewsSection() {
   return (
-    <section id="reviews" className="scroll-mt-24 py-12 md:py-16" aria-labelledby="reviews-title">
+    <section id="reviews" aria-labelledby="reviews-title" className="scroll-mt-24 border-y border-[var(--color-line)] bg-[var(--color-surface)] py-16 md:py-24">
       <div className="container-x">
-        <SectionTitle id="reviews-title" title="Отзывы" />
+        <SectionHeading
+          id="reviews-title"
+          eyebrow="Отзывы"
+          title="Что пишут клиенты"
+          subtitle={`Отзывы взяты из карточки 2ГИС и приведены без правок — включая критические. Мы не удаляем неудобные оценки: полный список, ${reviewsWord(BUSINESS.rating.reviewsCount)}, доступен в источнике.`}
+        />
 
-        <div className="card flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-[28px] font-extrabold">
-              ★ {BUSINESS.twogis.rating.toLocaleString('ru-RU')}
-              <span className="ml-2 text-[15px] font-normal text-[var(--color-muted)]">
-                {BUSINESS.twogis.ratingsCount} оценок · {BUSINESS.twogis.reviewsCount} отзывов
+        <div className="card flex flex-wrap items-center justify-between gap-5 p-6">
+          <div className="flex items-center gap-4">
+            <span className="font-[family-name:var(--font-display)] text-[46px] leading-none text-[var(--color-ink)]">
+              {BUSINESS.rating.value.toLocaleString('ru-RU')}
+            </span>
+            <span>
+              <Stars rating={5} />
+              <span className="mt-1 block text-[14px] text-[var(--color-muted)]">
+                {ratingsWord(BUSINESS.rating.ratingsCount)} · {reviewsWord(BUSINESS.rating.reviewsCount)} · данные на{' '}
+                {humanDate(REVIEWS_AS_OF)}
               </span>
-            </p>
-            <p className="hint mt-1">
-              Рейтинг и отзывы — на карточке 2ГИС (по состоянию на {formatLocalDay(BUSINESS.twogis.asOf)}).
-            </p>
+            </span>
           </div>
-          <TrackedLink href={BUSINESS.twogis.reviews} event="click_2gis_reviews" external className="btn btn-secondary">
-            Читать отзывы в 2ГИС
-          </TrackedLink>
+
+          <a href={REVIEWS_SOURCE_URL} target="_blank" rel="noopener noreferrer" className="btn btn-secondary !min-h-[46px]">
+            Все отзывы в 2ГИС
+          </a>
         </div>
 
-        {reviews.length > 0 ? (
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {reviews.map((review) => (
-              <blockquote key={review.id} className="card p-4">
-                <p className="text-[15px] leading-relaxed">«{review.text}»</p>
-                <footer className="mt-3 text-[14px] text-[var(--color-muted)]">
-                  {review.author}
-                  {review.rating ? ` · ★ ${review.rating}` : ''}
-                  {review.review_date ? ` · ${review.review_date}` : ''}
-                </footer>
-              </blockquote>
-            ))}
-          </div>
-        ) : null}
-      </div>
-    </section>
-  );
-}
-
-/* --------------------------------- gallery -------------------------------- */
-
-export function GallerySection({ photos }: { photos: PhotoRow[] }) {
-  if (photos.length === 0) return null; // no invented photos: the block stays hidden (§12)
-
-  return (
-    <section id="gallery" className="scroll-mt-24 border-y border-[var(--color-line)] bg-[var(--color-surface)] py-12 md:py-16">
-      <div className="container-x">
-        <SectionTitle id="gallery-title" title="Фото" />
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-          {photos.map((photo) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={photo.id}
-              src={photo.url}
-              alt={photo.alt}
-              width={800}
-              height={600}
-              loading="lazy"
-              className="aspect-[4/3] w-full rounded-[var(--radius-card)] border border-[var(--color-line)] object-cover"
-            />
+        <ul className="mt-6 grid gap-4 md:grid-cols-2">
+          {REVIEWS.map((review, index) => (
+            <li key={`${review.author}-${review.date}`} className="h-full">
+              <Reveal delay={index * 40} className="h-full">
+                <div className="card h-full p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <Stars rating={review.rating} />
+                    <span className="text-[13px] text-[var(--color-muted)]">{humanDate(review.date)}</span>
+                  </div>
+                  <blockquote className="mt-3 text-[15px] leading-relaxed text-[var(--color-chrome)]">
+                    «{review.text}»
+                  </blockquote>
+                  <footer className="mt-3 text-[14px] font-semibold text-[var(--color-ink)]">{review.author}</footer>
+                </div>
+              </Reveal>
+            </li>
           ))}
+        </ul>
+
+        <p className="mt-5 text-[13px] text-[var(--color-muted)]">
+          Источник: карточка компании в 2ГИС. Тексты приведены как есть, орфография авторов сохранена.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+/* --------------------------------- о компании ---------------------------- */
+
+export function AboutSection() {
+  return (
+    <section id="about" aria-labelledby="about-title" className="scroll-mt-24 py-16 md:py-24">
+      <div className="container-x grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16">
+        <div>
+          <SectionHeading
+            id="about-title"
+            eyebrow="О компании"
+            title={`Автокомплекс «${BUSINESS.name}»`}
+          />
+          <div className="grid gap-4 text-[16px] leading-relaxed text-[var(--color-chrome)]">
+            <p>
+              «{BUSINESS.name}» — автокомплекс в {BUSINESS.city}е по адресу {BUSINESS.address}. Основное направление —
+              ремонт и обслуживание легковых автомобилей: ходовая часть, бензиновые двигатели, развал-схождение и
+              запчасти для иномарок.
+            </p>
+            <p>
+              Работаем ежедневно, {BUSINESS.hours.text.toLowerCase()}, без выходных. В карточке 2ГИС у компании{' '}
+              {BUSINESS.brands.length} марок в списке обслуживания — от бюджетных Lada, Daewoo и Ravon до
+              Mercedes-Benz и Lexus.
+            </p>
+            <p>
+              Рейтинг в {BUSINESS.rating.source} — {BUSINESS.rating.value.toLocaleString('ru-RU')} при{' '}
+              {ratingsWord(BUSINESS.rating.ratingsCount)} и {reviewsWord(BUSINESS.rating.reviewsCount)}. Полный список
+              направлений и отзывов доступен в карточке компании.
+            </p>
+            {OWNER_INPUT.description ? <p>{OWNER_INPUT.description}</p> : null}
+            {OWNER_INPUT.warranty ? (
+              <p className="flex gap-3 text-[15px]">
+                <CircleCheck className="mt-0.5 size-5 shrink-0 text-[var(--color-success)]" aria-hidden="true" />
+                {OWNER_INPUT.warranty}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="mt-8 flex flex-wrap gap-3">
+            <BookButton label="Записаться онлайн" />
+            <a href={TWO_GIS.card} target="_blank" rel="noopener noreferrer" className="btn btn-ghost">
+              Карточка в 2ГИС
+            </a>
+          </div>
+        </div>
+
+        <Reveal className="h-full">
+          <div className="grid h-full content-start gap-4">
+            <GalleryGrid />
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+/* ---------------------------------- марки -------------------------------- */
+
+export function BrandsSection() {
+  return (
+    <section id="brands" aria-labelledby="brands-title" className="scroll-mt-24 border-y border-[var(--color-line)] bg-[var(--color-surface)] py-16 md:py-24">
+      <div className="container-x">
+        <SectionHeading
+          id="brands-title"
+          eyebrow="Марки"
+          title={`${BUSINESS.brands.length} марок в обслуживании`}
+          subtitle="Список марок взят из карточки 2ГИС. Если вашей марки нет в списке — позвоните, уточним возможность работ."
+        />
+
+        <ul className="flex flex-wrap gap-2">
+          {BUSINESS.brands.map((brand) => (
+            <li
+              key={brand}
+              className="rounded-full border border-[var(--color-line)] px-4 py-2 text-[14px] text-[var(--color-chrome)] transition-colors hover:border-[var(--color-accent)]/60 hover:text-[var(--color-ink)]"
+            >
+              {brand}
+            </li>
+          ))}
+        </ul>
+
+        <div className="mt-8 flex flex-wrap gap-3">
+          <a href={`tel:${BUSINESS.phone.e164}`} className="btn btn-secondary">
+            <Phone className="size-5" aria-hidden="true" />
+            {BUSINESS.phone.display}
+          </a>
+          <BookButton label="Записаться онлайн" variant="ghost" />
         </div>
       </div>
     </section>
   );
 }
 
-/* ----------------------------------- faq ---------------------------------- */
-
-const FAQ: AccordionItem[] = [
-  {
-    question: 'Как записаться на сервис?',
-    answer:
-      'Нажмите «Записаться онлайн», выберите услугу, дату и время, оставьте имя и телефон. Мы свяжемся, чтобы подтвердить запись.',
-  },
-  {
-    question: 'Не знаю, что сломалось. Что выбрать?',
-    answer:
-      'Выберите «Не знаю, что сломалось — нужна диагностика». Мастер осмотрит автомобиль, определит причину и объяснит, что делать дальше.',
-  },
-  {
-    question: 'Как быстро подтвердят запись?',
-    answer:
-      'Обычно в течение дня в рабочее время. Мы позвоним или напишем в WhatsApp — как вам удобнее. До подтверждения запись видна в статусе «Ожидает подтверждения».',
-  },
-  {
-    question: 'Как отменить или перенести запись?',
-    answer:
-      'Откройте страницу своей записи (ссылка есть на экране после отправки) и нажмите «Отменить запись». Перенос — это отмена и новая запись на удобное время.',
-  },
-  {
-    question: 'Можно приехать без записи?',
-    answer:
-      'Можно, но лучше записаться заранее — так вы не будете ждать в очереди, а мастер освободит для вас время.',
-  },
-  {
-    question: 'Как с вами связаться?',
-    answer: `Позвоните по номеру ${BUSINESS.phone.display} или напишите в WhatsApp. Адрес: ${BUSINESS.address}, ${BUSINESS.city}. ${BUSINESS.hours.text}.`,
-  },
-];
+/* ---------------------------------- вопросы ------------------------------ */
 
 export function FaqSection() {
   return (
-    <section id="faq" className="scroll-mt-24 py-12 md:py-16" aria-labelledby="faq-title">
+    <section id="faq" aria-labelledby="faq-title" className="scroll-mt-24 py-16 md:py-24">
       <div className="container-x">
-        <SectionTitle id="faq-title" title="Частые вопросы" />
+        <SectionHeading
+          id="faq-title"
+          eyebrow="Вопросы"
+          title="Частые вопросы"
+          subtitle="Ответы основаны на данных карточки компании. Там, где данных нет, мы говорим прямо: уточните у администратора."
+        />
         <Accordion items={FAQ} />
       </div>
     </section>
   );
 }
 
-/* --------------------------------- contacts -------------------------------- */
+/* ---------------------------------- контакты ----------------------------- */
 
-export function ContactsSection({ contacts }: { contacts: Contacts }) {
+export function ContactsSection() {
   return (
     <section
       id="contacts"
-      className="scroll-mt-24 border-t border-[var(--color-line)] bg-[var(--color-surface)] py-12 md:py-16"
       aria-labelledby="contacts-title"
+      className="scroll-mt-24 border-t border-[var(--color-line)] bg-[var(--color-surface)] py-16 md:py-24"
     >
       <div className="container-x">
-        <SectionTitle id="contacts-title" title="Контакты" />
+        <SectionHeading id="contacts-title" eyebrow="Контакты" title={`${BUSINESS.name} — ${BUSINESS.kind}`} />
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="grid gap-3">
-            <p className="flex items-start gap-3">
+        <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
+          <div className="grid gap-5">
+            <p className="flex items-start gap-3 text-[16px]">
               <MapPin className="mt-0.5 size-5 shrink-0 text-[var(--color-accent)]" aria-hidden="true" />
               <span>
-                <span className="block font-semibold">{contacts.address}</span>
-                <span className="hint">{BUSINESS.city}</span>
+                <span className="block font-semibold">{BUSINESS.address}</span>
+                <span className="hint">
+                  {BUSINESS.city}, индекс {BUSINESS.postcode} · ближайшая остановка «{BUSINESS.nearestStop.name}» (
+                  {BUSINESS.nearestStop.distance})
+                </span>
               </span>
             </p>
 
-            <p className="flex items-start gap-3">
+            <p className="flex items-start gap-3 text-[16px]">
               <Clock className="mt-0.5 size-5 shrink-0 text-[var(--color-accent)]" aria-hidden="true" />
-              <span className="font-semibold">{BUSINESS.hours.text}</span>
+              <span>
+                <span className="block font-semibold">{BUSINESS.hours.text}</span>
+                <span className="hint">без выходных</span>
+              </span>
             </p>
 
-            <p className="flex items-start gap-3">
+            <p className="flex items-start gap-3 text-[16px]">
               <Phone className="mt-0.5 size-5 shrink-0 text-[var(--color-accent)]" aria-hidden="true" />
-              <TrackedLink
-                href={`tel:${contacts.phoneE164}`}
-                event="click_phone"
-                className="font-semibold underline-offset-4 hover:underline"
-              >
-                {contacts.phoneDisplay}
-              </TrackedLink>
-            </p>
-
-            <p className="flex flex-wrap items-start gap-3">
-              <MessageCircle className="mt-0.5 size-5 shrink-0 text-[var(--color-accent)]" aria-hidden="true" />
-              <span className="flex flex-wrap gap-3">
-                {contacts.whatsapp.map((entry) => (
-                  <TrackedLink
-                    key={entry.wa}
-                    href={`https://wa.me/${entry.wa}`}
-                    event="click_whatsapp"
-                    external
-                    className="font-semibold underline-offset-4 hover:underline"
-                  >
-                    WhatsApp {entry.display}
-                  </TrackedLink>
-                ))}
+              <span>
+                <a href={`tel:${BUSINESS.phone.e164}`} className="block font-semibold hover:text-[var(--color-accent)]">
+                  {BUSINESS.phone.display}
+                </a>
+                <span className="hint">контакт-центр: {BUSINESS.phoneCenterHours}</span>
               </span>
             </p>
 
-            <p className="flex items-start gap-3">
-              <span className="mt-0.5 size-5 shrink-0 text-center text-[var(--color-accent)]" aria-hidden="true">
-                @
-              </span>
-              <TrackedLink
-                href={contacts.instagramUrl}
-                event="click_whatsapp"
-                external
-                className="font-semibold underline-offset-4 hover:underline"
+            <div className="grid gap-2 text-[16px]">
+              {BUSINESS.whatsapp.map((entry) => (
+                <a
+                  key={entry.wa}
+                  href={`https://wa.me/${entry.wa}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold underline-offset-4 hover:text-[var(--color-accent)] hover:underline"
+                >
+                  WhatsApp {entry.display}
+                </a>
+              ))}
+              <a
+                href={BUSINESS.instagram.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold underline-offset-4 hover:text-[var(--color-accent)] hover:underline"
               >
-                Instagram @{contacts.instagramHandle}
-              </TrackedLink>
-            </p>
+                Instagram @{BUSINESS.instagram.handle}
+              </a>
+            </div>
 
-            <div className="mt-2 flex flex-wrap gap-2">
-              <TrackedLink href={BUSINESS.twogis.route} event="click_route" external className="btn btn-secondary">
-                Маршрут в 2ГИС
-              </TrackedLink>
-              <TrackedLink href={BUSINESS.maps.google} event="click_route" external className="btn btn-secondary">
-                Google Maps
-              </TrackedLink>
-              <TrackedLink href={BUSINESS.maps.yandex} event="click_route" external className="btn btn-secondary">
-                Яндекс Карты
-              </TrackedLink>
+            <div className="mt-1 flex flex-wrap gap-3">
+              <a href={`tel:${BUSINESS.phone.e164}`} className="btn btn-secondary">
+                <Phone className="size-5" aria-hidden="true" />
+                Позвонить
+              </a>
+              <a href={TWO_GIS.directions} target="_blank" rel="noopener noreferrer" className="btn btn-secondary">
+                <MapPin className="size-5" aria-hidden="true" />
+                Построить маршрут
+              </a>
+              <BookButton label="Записаться" variant="ghost" />
             </div>
           </div>
 
@@ -529,40 +472,59 @@ export function ContactsSection({ contacts }: { contacts: Contacts }) {
   );
 }
 
-/* ---------------------------------- footer --------------------------------- */
+/* ----------------------------------- футер ------------------------------- */
 
-export function Footer({ contacts }: { contacts: Contacts }) {
+export function Footer() {
   const year = new Date().getFullYear();
+
   return (
-    <footer className="border-t border-[var(--color-line)] py-8">
-      <div className="container-x flex flex-col gap-4 text-[14px] text-[var(--color-muted)]">
-        <div className="flex flex-wrap items-center gap-4">
-          <Link href="/privacy" className="underline-offset-4 hover:underline">
-            Политика конфиденциальности
-          </Link>
-          <TrackedLink
-            href={BUSINESS.twogis.card}
-            event="click_2gis_reviews"
-            external
-            className="underline-offset-4 hover:underline"
-          >
-            2ГИС
-          </TrackedLink>
-          <TrackedLink
-            href={contacts.instagramUrl}
-            event="click_whatsapp"
-            external
-            className="underline-offset-4 hover:underline"
-          >
-            Instagram
-          </TrackedLink>
-          <Link href="/zapis" className="underline-offset-4 hover:underline">
-            Онлайн-запись
-          </Link>
+    <footer className="border-t border-[var(--color-line)] py-10">
+      <div className="container-x grid gap-6 text-[14px] text-[var(--color-muted)]">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <span className="font-[family-name:var(--font-display)] text-[22px] uppercase tracking-[0.08em] text-[var(--color-ink)]">
+            Керей
+          </span>
+          <nav className="flex flex-wrap gap-5" aria-label="Ссылки в подвале">
+            <Link href="/#services" className="hover:text-[var(--color-ink)]">
+              Услуги
+            </Link>
+            <Link href="/#reviews" className="hover:text-[var(--color-ink)]">
+              Отзывы
+            </Link>
+            <Link href="/booking" className="hover:text-[var(--color-ink)]">
+              Онлайн-запись
+            </Link>
+            <a href={TWO_GIS.card} target="_blank" rel="noopener noreferrer" className="hover:text-[var(--color-ink)]">
+              2ГИС
+            </a>
+            <a href={BUSINESS.instagram.url} target="_blank" rel="noopener noreferrer" className="hover:text-[var(--color-ink)]">
+              Instagram
+            </a>
+            <Link href="/privacy" className="hover:text-[var(--color-ink)]">
+              Политика данных
+            </Link>
+          </nav>
         </div>
-        <p>
-          © {year} {BUSINESS.name} — {BUSINESS.descriptor}, {BUSINESS.city}. Реквизиты: {LEGAL_ENTITY}
-        </p>
+
+        <div className="metal-line" />
+
+        <div className="grid gap-1">
+          <p>
+            {BUSINESS.address}, {BUSINESS.city}. {BUSINESS.hours.text}. Телефон:{' '}
+            <a href={`tel:${BUSINESS.phone.e164}`} className="hover:text-[var(--color-ink)]">
+              {BUSINESS.phone.display}
+            </a>
+            .
+          </p>
+          <p>
+            © {year} Автокомплекс «{BUSINESS.name}».
+            {OWNER_INPUT.legalEntity ? ` ${OWNER_INPUT.legalEntity}` : ''}
+          </p>
+          <p className="text-[13px]">
+            Информация о компании (адрес, часы работы, рейтинг, марки, направления) взята из публичной карточки 2ГИС.
+            Изображения на сайте — демонстрационные и заменяются фотографиями сервиса.
+          </p>
+        </div>
       </div>
     </footer>
   );

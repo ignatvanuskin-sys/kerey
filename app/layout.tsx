@@ -1,35 +1,44 @@
 import type { Metadata, Viewport } from 'next';
-import { Manrope } from 'next/font/google';
+import { Inter, Oswald } from 'next/font/google';
 import './globals.css';
-import { BUSINESS, SEO } from '@/content/business';
-import { publicBaseUrl } from '@/lib/env';
-import Analytics from '@/components/Analytics';
+import { BUSINESS, SEO, TWO_GIS } from '@/content/business';
+import { siteUrl } from '@/lib/site-url';
 
-const manrope = Manrope({
+const inter = Inter({
   subsets: ['cyrillic', 'latin'],
-  weight: ['400', '600', '800'],
   display: 'swap',
-  variable: '--font-manrope',
+  variable: '--font-inter',
 });
 
+// Только те начертания, которые реально используются в интерфейсе — меньше весит шрифт.
+const oswald = Oswald({
+  subsets: ['cyrillic', 'latin'],
+  weight: ['400', '600'],
+  display: 'swap',
+  variable: '--font-oswald',
+});
+
+/** Адрес сайта определяется в lib/site-url.ts: PUBLIC_BASE_URL → домен Vercel → localhost. */
+const baseUrl = siteUrl;
+
 export const metadata: Metadata = {
-  metadataBase: new URL(publicBaseUrl()),
+  metadataBase: new URL(baseUrl()),
   title: {
     default: SEO.title,
     template: '%s | Керей — автокомплекс в Кокшетау',
   },
   description: SEO.description,
   keywords: SEO.keywords,
-  applicationName: 'Керей — автокомплекс',
+  applicationName: `Керей — ${BUSINESS.kind}`,
   alternates: { canonical: '/' },
   openGraph: {
     type: 'website',
     locale: 'ru_KZ',
     url: '/',
-    siteName: `${BUSINESS.name} — ${BUSINESS.descriptor}`,
+    siteName: `Керей — ${BUSINESS.kind}, ${BUSINESS.city}`,
     title: SEO.title,
     description: SEO.description,
-    images: [{ url: '/og.jpg', width: 1200, height: 630, alt: `${BUSINESS.name}, ${BUSINESS.descriptor} в ${BUSINESS.city}` }],
+    images: [{ url: '/og.jpg', width: 1200, height: 630, alt: 'Автокомплекс «Керей» в Кокшетау' }],
   },
   twitter: {
     card: 'summary_large_image',
@@ -38,31 +47,35 @@ export const metadata: Metadata = {
     images: ['/og.jpg'],
   },
   robots: { index: true, follow: true },
-  icons: { icon: '/icon.svg', apple: '/icon.svg' },
+  icons: { icon: '/icon.svg' },
   formatDetection: { telephone: true },
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0E0F11',
+  themeColor: '#0B0C0E',
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
 };
 
-/** Local-business structured data (§11). No aggregateRating: the rating belongs to 2GIS, not to us. */
+/**
+ * LocalBusiness-разметка. Только проверенные данные из карточки 2ГИС.
+ * aggregateRating сознательно не указываем: рейтинг принадлежит 2ГИС, а не сайту компании.
+ */
 function structuredData() {
   return {
     '@context': 'https://schema.org',
     '@type': 'AutoRepair',
-    name: `${BUSINESS.name} — ${BUSINESS.descriptor}`,
+    name: `Керей — ${BUSINESS.kind}`,
     description: SEO.description,
-    url: publicBaseUrl(),
+    url: baseUrl(),
     telephone: BUSINESS.phone.e164,
-    image: `${publicBaseUrl()}/og.jpg`,
+    image: `${baseUrl()}/og.jpg`,
     address: {
       '@type': 'PostalAddress',
       streetAddress: BUSINESS.address,
       addressLocality: BUSINESS.city,
+      postalCode: BUSINESS.postcode,
       addressCountry: 'KZ',
     },
     geo: { '@type': 'GeoCoordinates', latitude: BUSINESS.geo.lat, longitude: BUSINESS.geo.lon },
@@ -74,26 +87,24 @@ function structuredData() {
         closes: BUSINESS.hours.close,
       },
     ],
-    sameAs: [BUSINESS.twogis.card, BUSINESS.instagram.url],
     areaServed: { '@type': 'City', name: BUSINESS.city },
+    sameAs: [TWO_GIS.card, BUSINESS.instagram.url],
+    knowsAbout: BUSINESS.subRubrics,
   };
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ru" className={manrope.variable}>
+    <html lang="ru" className={`${inter.variable} ${oswald.variable}`}>
       <head>
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <script
           type="application/ld+json"
-          // Static, developer-authored JSON — no user input is interpolated here.
+          // Разметка собрана из статических данных проекта, пользовательский ввод сюда не попадает.
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData()) }}
         />
       </head>
-      <body className="antialiased">
-        {children}
-        <Analytics />
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

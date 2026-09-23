@@ -1,301 +1,103 @@
 /**
- * Telegram Bot API client + booking card rendering (§7).
- * Server-only: the bot token must never reach the browser bundle (§0.7).
+ * Уведомления владельцу в Telegram.
+ *
+ * Интеграция необязательная: пока TELEGRAM_BOT_TOKEN и TELEGRAM_CHAT_IDS пустые,
+ * функция возвращает null, и заявка просто сохраняется в панели /admin.
+ * Заполнили переменные — уведомления включаются без изменений в коде.
+ *
+ * Чтобы подключить вместо Telegram что-то другое (CRM, WhatsApp, почту),
+ * достаточно добавить рядом свой модуль и вызвать его в lib/booking.ts вместо notifyNewBooking.
  */
-import { formatInTimeZone } from 'date-fns-tz';
-import { ru } from 'date-fns/locale';
-import { BUSINESS } from '@/content/business';
-import { bookingNumber, escapeHtml, truncate } from '@/lib/utils';
-import { formatPhone, waDigits } from '@/lib/phone';
-import { TZ } from '@/lib/tz';
-import type { BookingRow } from '@/db/bookings';
+import { bookingNumberLabel, type BookingRecord, type NotificationState } from './booking-types';
+import { formatPhone } from './phone';
+import { humanDate, humanDuration } from './format';
 
-const API_BASE = 'https://api.telegram.org';
-export const TELEGRAM_TEXT_LIMIT = 4096;
-export const COMMENT_LIMIT = 500;
-
-export type InlineKeyboardButton = { text: string; url?: string; callback_data?: string };
-export type InlineKeyboard = { inline_keyboard: InlineKeyboardButton[][] };
-
-export type TelegramResult<T> =
-  | { ok: true; result: T }
-  | { ok: false; error: string; retryAfter?: number; status?: number };
+const API = 'https://api.telegram.org';
 
 function botToken(): string | undefined {
-  return process.env.TELEGRAM_BOT_TOKEN?.trim() || undefined;
+  const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
+  return token ? token : undefined;
 }
 
-/** Single entry point for Bot API calls, with a hard timeout (§7.2). */
-export async function callTelegram<T = unknown>(
-  method: string,
-  payload: Record<string, unknown>,
-  timeoutMs = 5000,
-): Promise<TelegramResult<T>> {
+function chatIds(): string[] {
+  return (process.env.TELEGRAM_CHAT_IDS ?? '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean);
+}
+
+export function telegramConfigured(): boolean {
+  return Boolean(botToken()) && chatIds().length > 0;
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** Текст карточки заявки для владельца. Все данные клиента экранируются. */
+export function bookingMessage(booking: BookingRecord): string {
+  const lines = [
+    `🆕 <b>Новая заявка ${bookingNumberLabel(booking.number)}</b>`,
+    '',
+    `🔧 <b>Услуга:</b> ${escapeHtml(booking.serviceTitle)}`,
+    `🚗 <b>Авто:</b> ${escapeHtml(`${booking.carBrand} ${booking.carModel}`.trim())}${
+      booking.carYear ? `, ${escapeHtml(booking.carYear)}` : ''
+    }${booking.carPlate ? ` · ${escapeHtml(booking.carPlate)}` : ''}`,
+    `📅 <b>Когда:</b> ${escapeHtml(humanDate(booking.date))}, ${booking.time} (≈ ${humanDuration(booking.durationMin)})`,
+    `👤 <b>Клиент:</b> ${escapeHtml(booking.name)}`,
+    `📞 <b>Телефон:</b> ${escapeHtml(formatPhone(booking.phone) || booking.phone)}`,
+  ];
+
+  if (booking.comment) lines.push(`📝 <b>Комментарий:</b> ${escapeHtml(booking.comment)}`);
+  if (booking.utm?.source) lines.push(`🌐 <b>Источник:</b> ${escapeHtml(booking.utm.source)}`);
+
+  return lines.join('\n');
+}
+
+async function sendMessage(chatId: string, text: string): Promise<{ ok: boolean; error?: string }> {
   const token = botToken();
-  if (!token) {
-    return { ok: false, error: 'TELEGRAM_BOT_TOKEN не задан' };
-  }
+  if (!token) return { ok: false, error: 'TELEGRAM_BOT_TOKEN не задан' };
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const timer = setTimeout(() => controller.abort(), 5000);
   try {
-    const response = await fetch(`${API_BASE}/bot${token}/${method}`, {
+    const response = await fetch(`${API}/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true }),
       signal: controller.signal,
       cache: 'no-store',
     });
-
-    const json = (await response.json().catch(() => null)) as
-      | { ok: boolean; result?: T; description?: string; parameters?: { retry_after?: number } }
-      | null;
-
-    if (!json) return { ok: false, error: `Telegram: пустой ответ (HTTP ${response.status})`, status: response.status };
-
-    if (!json.ok) {
-      const retryAfter = json.parameters?.retry_after;
-      return {
-        ok: false,
-        error: json.description ?? `Telegram вернул ошибку (HTTP ${response.status})`,
-        retryAfter,
-        status: response.status,
-      };
-    }
-    return { ok: true, result: json.result as T };
+    const json = (await response.json().catch(() => null)) as { ok?: boolean; description?: string } | null;
+    if (!json?.ok) return { ok: false, error: json?.description ?? `HTTP ${response.status}` };
+    return { ok: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return { ok: false, error: message.includes('abort') ? 'Telegram: таймаут запроса' : message };
+    return { ok: false, error: message.includes('abort') ? 'таймаут запроса' : message };
   } finally {
     clearTimeout(timer);
   }
 }
 
-export function sendMessage(
-  chatId: string,
-  text: string,
-  keyboard?: InlineKeyboard,
-): Promise<TelegramResult<{ message_id: number }>> {
-  return callTelegram<{ message_id: number }>('sendMessage', {
-    chat_id: chatId,
-    text: truncate(text, TELEGRAM_TEXT_LIMIT),
-    parse_mode: 'HTML',
-    disable_web_page_preview: true,
-    ...(keyboard ? { reply_markup: keyboard } : {}),
-  });
-}
+/** Отправляет карточку заявки. Никогда не бросает исключение: сбой уведомления не должен ломать запись. */
+export async function notifyNewBooking(booking: BookingRecord): Promise<NotificationState | null> {
+  if (!telegramConfigured()) return null;
 
-export function editMessageText(
-  chatId: string,
-  messageId: number,
-  text: string,
-  keyboard?: InlineKeyboard,
-): Promise<TelegramResult<unknown>> {
-  return callTelegram('editMessageText', {
-    chat_id: chatId,
-    message_id: messageId,
-    text: truncate(text, TELEGRAM_TEXT_LIMIT),
-    parse_mode: 'HTML',
-    disable_web_page_preview: true,
-    ...(keyboard ? { reply_markup: keyboard } : {}),
-  });
-}
+  const recipients = chatIds();
+  const text = bookingMessage(booking);
+  const errors: string[] = [];
+  let sent = 0;
 
-export function answerCallbackQuery(callbackQueryId: string, text?: string): Promise<TelegramResult<unknown>> {
-  return callTelegram('answerCallbackQuery', {
-    callback_query_id: callbackQueryId,
-    ...(text ? { text: truncate(text, 190) } : {}),
-  });
-}
-
-/* ------------------------------- rendering ------------------------------- */
-
-function humanStart(startAtIso: string): string {
-  return formatInTimeZone(new Date(startAtIso), TZ, 'EEEEEE, d MMMM', { locale: ru });
-}
-
-function humanTime(startAtIso: string): string {
-  return formatInTimeZone(new Date(startAtIso), TZ, 'HH:mm');
-}
-
-export function humanDuration(minutes: number): string {
-  if (minutes < 60) return `${minutes} мин`;
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return rest === 0 ? `${hours} ч` : `${hours} ч ${rest} мин`;
-}
-
-export function humanCreatedStamp(createdAtIso: string): string {
-  return formatInTimeZone(new Date(createdAtIso), TZ, 'dd.MM HH:mm');
-}
-
-export function carLine(booking: Pick<BookingRow, 'car_brand' | 'car_model' | 'car_year' | 'car_plate'>): string {
-  const parts = [`${booking.car_brand} ${booking.car_model}`.trim()];
-  if (booking.car_year) parts.push(String(booking.car_year));
-  const base = parts.join(', ');
-  return booking.car_plate ? `${base} · ${booking.car_plate}` : base;
-}
-
-export function contactMethodRu(method: BookingRow['contact_method']): string {
-  return method === 'call' ? 'Звонок' : method === 'whatsapp' ? 'WhatsApp' : 'Telegram';
-}
-
-export function sourceLine(booking: Pick<BookingRow, 'source' | 'utm_source'>): string {
-  const base = booking.source === 'admin' ? 'админка' : 'сайт';
-  return booking.utm_source ? `${base} (${booking.utm_source})` : base;
-}
-
-export function ownerStatusHeader(
-  booking: BookingRow,
-  label: string,
-  actor?: string | null,
-  at?: string | null,
-): string {
-  const who = actor === 'owner_tg' ? 'владелец' : actor === 'client' ? 'клиент' : actor === 'admin' ? 'админка' : '';
-  const stamp = at ? ` · ${humanCreatedStamp(at)}` : '';
-  return `${label} · №${bookingNumber(booking.id)}${who ? ` · ${who}` : ''}${stamp}`;
-}
-
-/** Text the owner sends to the client after confirming (already URL-encoded by the caller). */
-export function whatsappConfirmText(booking: Pick<BookingRow, 'client_name' | 'start_at'>): string {
-  const name = booking.client_name.split(' ')[0] || booking.client_name;
-  const date = formatInTimeZone(new Date(booking.start_at), TZ, 'd MMMM', { locale: ru });
-  const time = humanTime(booking.start_at);
-  return `Здравствуйте, ${name}! Ваша запись в «${BUSINESS.name}» на ${date} в ${time} подтверждена. Адрес: ${BUSINESS.address}, ${BUSINESS.city}. Ждём вас!`;
-}
-
-export function waLinkToClient(booking: Pick<BookingRow, 'client_phone'>, text: string): string {
-  const digits = waDigits(booking.client_phone);
-  return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
-}
-
-export type CardOptions = {
-  /** §7.6 — when callbacks are disabled the card carries URL buttons only. */
-  callbacksEnabled: boolean;
-  adminUrl: string;
-};
-
-/** Card for a freshly created booking (§7.3). Every user-supplied field is HTML-escaped. */
-export function bookingCreatedCard(
-  booking: BookingRow,
-  options: CardOptions,
-): { text: string; keyboard: InlineKeyboard } {
-  const lines = [
-    `🆕 <b>Новая запись №${bookingNumber(booking.id)}</b>`,
-    '',
-    `🔧 <b>Услуга:</b> ${escapeHtml(booking.service_title)}`,
-    `🚗 <b>Авто:</b> ${escapeHtml(carLine(booking))}`,
-    `📅 <b>Когда:</b> ${humanStart(booking.start_at)} · ${humanTime(booking.start_at)} (≈ ${humanDuration(booking.duration_min)})`,
-    `👤 <b>Клиент:</b> ${escapeHtml(booking.client_name)}`,
-    `📞 <b>Телефон:</b> ${escapeHtml(formatPhone(booking.client_phone) || booking.client_phone)}`,
-    `💬 <b>Связь:</b> ${contactMethodRu(booking.contact_method)}`,
-  ];
-  if (booking.comment) {
-    lines.push(`📝 <b>Комментарий:</b> ${escapeHtml(truncate(booking.comment, COMMENT_LIMIT))}`);
-  }
-  lines.push(
-    `🌐 <b>Источник:</b> ${escapeHtml(sourceLine(booking))}`,
-    `🕒 <b>Создана:</b> ${humanCreatedStamp(booking.created_at)}`,
-  );
-
-  const confirmText = whatsappConfirmText(booking);
-  const row1: InlineKeyboardButton[] = options.callbacksEnabled
-    ? [
-        { text: '✅ Подтвердить', callback_data: `bk:${booking.id}:ok` },
-        { text: '❌ Отклонить', callback_data: `bk:${booking.id}:no` },
-      ]
-    : [
-        { text: '💬 WhatsApp клиенту', url: waLinkToClient(booking, confirmText) },
-        { text: '🛠 Открыть в админке', url: `${options.adminUrl}/admin/bookings/${booking.id}` },
-      ];
-
-  const keyboard: InlineKeyboard = {
-    inline_keyboard: [
-      row1,
-      options.callbacksEnabled
-        ? [
-            { text: '💬 WhatsApp клиенту', url: waLinkToClient(booking, confirmText) },
-            { text: '🛠 Открыть в админке', url: `${options.adminUrl}/admin/bookings/${booking.id}` },
-          ]
-        : [],
-    ].filter((row) => row.length > 0),
-  };
-
-  return { text: truncate(lines.join('\n'), TELEGRAM_TEXT_LIMIT), keyboard };
-}
-
-/** Keyboard after the owner pressed a status button (§7.4). */
-export function statusKeyboard(booking: BookingRow, options: CardOptions): InlineKeyboard {
-  const adminButton: InlineKeyboardButton = {
-    text: '🛠 Открыть в админке',
-    url: `${options.adminUrl}/admin/bookings/${booking.id}`,
-  };
-  const whatsapp: InlineKeyboardButton = {
-    text: '💬 WhatsApp клиенту',
-    url: waLinkToClient(booking, whatsappConfirmText(booking)),
-  };
-
-  if (!options.callbacksEnabled) {
-    return { inline_keyboard: [[whatsapp, adminButton]] };
+  for (const chatId of recipients) {
+    const result = await sendMessage(chatId, text);
+    if (result.ok) sent += 1;
+    else if (result.error) errors.push(result.error);
   }
 
-  switch (booking.status) {
-    case 'new':
-      return {
-        inline_keyboard: [
-          [
-            { text: '✅ Подтвердить', callback_data: `bk:${booking.id}:ok` },
-            { text: '❌ Отклонить', callback_data: `bk:${booking.id}:no` },
-          ],
-          [whatsapp, adminButton],
-        ],
-      };
-    case 'confirmed':
-      return {
-        inline_keyboard: [
-          [
-            { text: '✔️ Выполнено', callback_data: `bk:${booking.id}:done` },
-            { text: '🚫 Не приехал', callback_data: `bk:${booking.id}:ns` },
-            { text: '↩️ Отменить', callback_data: `bk:${booking.id}:cancel` },
-          ],
-          [whatsapp, adminButton],
-        ],
-      };
-    default:
-      return { inline_keyboard: [[adminButton]] };
-  }
-}
-
-export type CallbackAction = 'ok' | 'no' | 'done' | 'ns' | 'cancel';
-
-export function parseCallbackData(data: string): { bookingId: number; action: CallbackAction } | null {
-  const match = /^bk:(\d+):(ok|no|done|ns|cancel)$/.exec(data);
-  if (!match) return null;
-  return { bookingId: Number(match[1]), action: match[2] as CallbackAction };
-}
-
-export const ACTION_TO_STATUS: Record<CallbackAction, BookingRow['status']> = {
-  ok: 'confirmed',
-  no: 'rejected',
-  done: 'done',
-  ns: 'no_show',
-  cancel: 'cancelled_by_owner',
-};
-
-/** `/start` for a foreign chat reveals only its own chat id (§7.5). */
-export function startMessageForStranger(chatId: number | string): string {
-  return `Ваш chat_id: <code>${escapeHtml(String(chatId))}</code>. Передайте его владельцу.`;
-}
-
-export function ownerHelpMessage(): string {
-  return [
-    `🛠 <b>Бот автокомплекса «${BUSINESS.name}»</b>`,
-    '',
-    'Карточки новых записей приходят сюда автоматически. Нажмите ✅ или ❌ — статус сразу поменяется на сайте.',
-    '',
-    '<b>Команды:</b>',
-    '/today — записи на сегодня',
-    '/tomorrow — записи на завтра',
-    '/new — необработанные записи',
-  ].join('\n');
+  return {
+    channel: 'telegram',
+    status: sent === recipients.length ? 'sent' : sent > 0 ? 'sent' : 'failed',
+    error: errors.length ? errors.join('; ').slice(0, 300) : undefined,
+    at: new Date().toISOString(),
+  };
 }

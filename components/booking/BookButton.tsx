@@ -1,19 +1,18 @@
 'use client';
 
-import { Calendar } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { track } from '@/lib/analytics';
-import { openBooking } from '@/lib/booking-ui';
+import { CalendarCheck } from 'lucide-react';
+import { cn } from '@/lib/cn';
+import { openBooking } from './booking-ui';
 
 type Props = {
-  /** Pre-selects the service in the wizard (used by the service cards). */
+  /** Услуга, которую нужно сразу выбрать в форме (клик по карточке каталога). */
   serviceSlug?: string;
   label?: string;
   className?: string;
-  variant?: 'primary' | 'secondary';
+  variant?: 'primary' | 'secondary' | 'ghost';
   withIcon?: boolean;
-  /** Landing hero placement, for analytics segmentation. */
-  source?: string;
+  /** Ссылка вместо кнопки — например, якорь на странице записи. */
+  href?: string;
 };
 
 export default function BookButton({
@@ -22,18 +21,26 @@ export default function BookButton({
   className,
   variant = 'primary',
   withIcon = true,
-  source = 'site',
+  href,
 }: Props) {
+  const classes = cn(
+    'btn',
+    variant === 'primary' ? 'btn-primary' : variant === 'secondary' ? 'btn-secondary' : 'btn-ghost',
+    className,
+  );
+
+  if (href) {
+    return (
+      <a href={href} className={classes}>
+        {withIcon ? <CalendarCheck className="size-5" aria-hidden="true" /> : null}
+        {label}
+      </a>
+    );
+  }
+
   return (
-    <button
-      type="button"
-      className={cn('btn', variant === 'primary' ? 'btn-primary' : 'btn-secondary', className)}
-      onClick={() => {
-        track('booking_open', { source, service: serviceSlug ?? 'any' });
-        openBooking(serviceSlug);
-      }}
-    >
-      {withIcon ? <Calendar className="size-5" aria-hidden="true" /> : null}
+    <button type="button" className={classes} onClick={() => openBooking(serviceSlug)}>
+      {withIcon ? <CalendarCheck className="size-5" aria-hidden="true" /> : null}
       {label}
     </button>
   );
