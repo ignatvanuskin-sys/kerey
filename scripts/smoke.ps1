@@ -89,6 +89,16 @@ Check 'sitemap.xml' ($sitemap.StatusCode -eq 200 -and $sitemap.Content -match '/
 $manifest = Invoke-WebRequest -Uri "$Base/manifest.webmanifest" -UseBasicParsing
 Check 'manifest.webmanifest' ($manifest.StatusCode -eq 200)
 
+# Картинка для соцсетей: путь в метаданных должен совпадать с реальным файлом.
+if ($html -match 'property="og:image" content="([^"]+)"') {
+  $ogPath = $Matches[1] -replace '^https?://[^/]+', ''
+  $og = 0
+  try { $og = (Invoke-WebRequest -Uri "$Base$ogPath" -UseBasicParsing).StatusCode } catch { $og = Get-Status $_ }
+  Check 'og:image отдаётся по указанному пути' ($og -eq 200) ($ogPath + " -> " + $og)
+} else {
+  Check 'og:image отдаётся по указанному пути' $false 'в разметке нет og:image'
+}
+
 Write-Host "`n== Доступное время ==" -ForegroundColor Cyan
 $days = Get-Json "$Base/api/availability"
 Check 'GET /api/availability (дни)' ($days.days.Count -gt 0) ("дней=" + $days.days.Count)

@@ -21,6 +21,9 @@ const oswald = Oswald({
 /** Адрес сайта определяется в lib/site-url.ts: PUBLIC_BASE_URL → домен Vercel → localhost. */
 const baseUrl = siteUrl;
 
+/** Картинка для соцсетей лежит рядом с остальными изображениями сайта. */
+const OG_IMAGE_PATH = '/images/og.jpg';
+
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl()),
   title: {
@@ -38,13 +41,13 @@ export const metadata: Metadata = {
     siteName: `Керей — ${BUSINESS.kind}, ${BUSINESS.city}`,
     title: SEO.title,
     description: SEO.description,
-    images: [{ url: '/og.jpg', width: 1200, height: 630, alt: 'Автокомплекс «Керей» в Кокшетау' }],
+    images: [{ url: OG_IMAGE_PATH, width: 1200, height: 630, alt: 'Автокомплекс «Керей» в Кокшетау' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: SEO.title,
     description: SEO.description,
-    images: ['/og.jpg'],
+    images: [OG_IMAGE_PATH],
   },
   robots: { index: true, follow: true },
   icons: { icon: '/icon.svg' },
@@ -70,7 +73,7 @@ function structuredData() {
     description: SEO.description,
     url: baseUrl(),
     telephone: BUSINESS.phone.e164,
-    image: `${baseUrl()}/og.jpg`,
+    image: `${baseUrl()}${OG_IMAGE_PATH}`,
     address: {
       '@type': 'PostalAddress',
       streetAddress: BUSINESS.address,
