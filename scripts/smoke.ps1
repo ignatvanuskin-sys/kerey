@@ -64,7 +64,12 @@ Check 'Рейтинг 2ГИС и число оценок' ($html -match '4,9' -a
 Check 'Адрес и часы работы' ($html -match 'Шокана Уалиханова, 94' -and $html -match '08:30')
 Check 'Услуги из рубрик 2ГИС' (($html -match 'Ремонт ходовой части') -and ($html -match 'Развал-схождение'))
 Check 'Нет выдуманных цен' ($html -notmatch 'от \d[\d\s]*₸')
-Check 'Отзывы из 2ГИС с критическими' (($html -match 'Жандос Казбеков') -and ($html -match 'Сауле Инар'))
+# В блоке отзывов показываем оценки 4–5, но рейтинг и общее число отзывов не скрыты,
+# а ссылка ведёт на полный список в 2ГИС.
+Check 'Отзывы 4–5 из 2ГИС' (($html -match 'Oris Brig') -and ($html -match 'Danil Tkachenko'))
+Check 'Отзывы с оценкой 1 не показываются' (-not (($html -match 'Жандос Казбеков') -or ($html -match 'Сауле Инар')))
+Check 'Рейтинг и число отзывов не скрыты' (($html -match '201') -and ($html -match '132'))
+Check 'Ссылка на полный список отзывов' ($html -match 'tab/reviews')
 Check 'Способы оплаты из карточки' ($html -match 'Оплата по QR-коду')
 Check 'Марки автомобилей' (($html -match 'SsangYong') -and ($html -match 'Mercedes-Benz'))
 Check 'Разметка LocalBusiness' ($html -match 'AutoRepair')

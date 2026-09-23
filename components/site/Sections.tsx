@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { CircleCheck, Clock, CreditCard, MapPin, Phone, Star, Wrench } from 'lucide-react';
 import { BUSINESS, OWNER_INPUT, TWO_GIS } from '@/content/business';
 import { SERVICES, priceLabel, type Service } from '@/content/services';
-import { REVIEWS, REVIEWS_AS_OF, REVIEWS_SOURCE_URL } from '@/content/reviews';
+import { FEATURED_MIN_RATING, REVIEWS, REVIEWS_AS_OF, REVIEWS_SOURCE_URL } from '@/content/reviews';
 import { FAQ } from '@/content/faq';
 import { ratingsWord, reviewsWord, humanDate, humanDuration } from '@/lib/format';
 import Reveal from '@/components/ui/Reveal';
@@ -222,6 +222,9 @@ export function WhyUsSection() {
 /* ------------------------------- соцдоказательство ----------------------- */
 
 export function ReviewsSection() {
+  // Показываем только оценки от 4: правило задано одной константой в content/reviews.ts
+  const featured = REVIEWS.filter((review) => review.rating >= FEATURED_MIN_RATING);
+
   return (
     <section id="reviews" aria-labelledby="reviews-title" className="scroll-mt-24 border-y border-[var(--color-line)] bg-[var(--color-surface)] py-16 md:py-24">
       <div className="container-x">
@@ -229,7 +232,9 @@ export function ReviewsSection() {
           id="reviews-title"
           eyebrow="Отзывы"
           title="Что пишут клиенты"
-          subtitle={`Отзывы взяты из карточки 2ГИС и приведены без правок — включая критические. Мы не удаляем неудобные оценки: полный список, ${reviewsWord(BUSINESS.rating.reviewsCount)}, доступен в источнике.`}
+          subtitle={`Здесь отзывы с оценкой 4–5 из карточки 2ГИС, тексты — без правок. Все ${reviewsWord(
+            BUSINESS.rating.reviewsCount,
+          )} вместе с критическими оценками открыты в источнике.`}
         />
 
         <div className="card flex flex-wrap items-center justify-between gap-5 p-6">
@@ -252,7 +257,7 @@ export function ReviewsSection() {
         </div>
 
         <ul className="mt-6 grid gap-4 md:grid-cols-2">
-          {REVIEWS.map((review, index) => (
+          {featured.map((review, index) => (
             <li key={`${review.author}-${review.date}`} className="h-full">
               <Reveal delay={index * 40} className="h-full">
                 <div className="card h-full p-5">
@@ -271,7 +276,8 @@ export function ReviewsSection() {
         </ul>
 
         <p className="mt-5 max-w-[80ch] text-[13px] text-[var(--color-muted)]">
-          Источник: карточка компании в 2ГИС. Тексты приведены как есть, орфография авторов сохранена.
+          Источник: карточка компании в 2ГИС. Показана часть отзывов; тексты приведены как есть, орфография авторов
+          сохранена.
         </p>
       </div>
     </section>
