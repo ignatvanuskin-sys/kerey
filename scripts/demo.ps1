@@ -25,8 +25,14 @@ Write-Host '2/3 Собираю свежую версию сайта...' -Foregro
 & npm run build 2>&1 | Select-String -Pattern 'Compiled successfully|error' | ForEach-Object { "    $_" }
 
 $password = (Get-Content '.env' | Where-Object { $_ -match '^ADMIN_PASSWORD=' }) -replace '^ADMIN_PASSWORD=', ''
+# Адрес для телефона: берём только домашние/офисные сети (192.168/10/172.16-31),
+# иначе можно случайно показать адрес VPN- или виртуального адаптера.
 $lanIp = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
-  Where-Object { $_.IPAddress -notlike '127.*' -and $_.PrefixOrigin -ne 'WellKnown' } |
+  Where-Object {
+    $_.IPAddress -match '^192\.168\.' -or
+    $_.IPAddress -match '^10\.' -or
+    $_.IPAddress -match '^172\.(1[6-9]|2\d|3[01])\.'
+  } |
   Select-Object -First 1 -ExpandProperty IPAddress)
 
 Write-Host "`n=== Готово к показу ===" -ForegroundColor Green
