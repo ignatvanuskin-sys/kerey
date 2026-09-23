@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import Header from '@/components/site/Header';
 import Hero from '@/components/site/Hero';
-import StickyBar from '@/components/site/StickyBar';
 import BookingRoot from '@/components/booking/BookingRoot';
 import {
   AboutSection,
@@ -26,8 +25,7 @@ export default function HomePage() {
     <>
       <Header />
 
-      {/* Нижний отступ — чтобы закреплённая панель на телефоне не перекрывала контент */}
-      <main className="pb-[76px] md:pb-0">
+      <main>
         <Hero />
         <ServicesSection />
         <HowItWorksSection />
@@ -40,7 +38,6 @@ export default function HomePage() {
       </main>
 
       <Footer />
-      <StickyBar />
       <BookingRoot />
     </>
   );

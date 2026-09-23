@@ -19,7 +19,7 @@ export default function BookingPage() {
     <>
       <Header />
 
-      <main id="booking" className="scroll-mt-24 pb-[76px] md:pb-0">
+      <main id="booking" className="scroll-mt-24">
         <div className="container-x grid gap-10 py-10 md:py-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,620px)] lg:gap-16">
           <div>
             <p className="eyebrow">Онлайн-запись</p>

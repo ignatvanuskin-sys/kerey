@@ -39,8 +39,7 @@ export default function Hero() {
         <div className="grid-texture absolute inset-0 opacity-70" />
       </div>
 
-      {/* На телефоне отступы компактнее: так строка рейтинга и часов остаётся над панелью действий */}
-      <div className="container-x grid gap-8 pt-6 pb-14 md:gap-10 md:py-20 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-end lg:gap-16 lg:py-28">
+      <div className="container-x grid gap-8 pt-8 pb-14 md:gap-10 md:py-20 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-end lg:gap-16 lg:py-28">
         <div>
           <p className="eyebrow">Автокомплекс в Кокшетау</p>
 

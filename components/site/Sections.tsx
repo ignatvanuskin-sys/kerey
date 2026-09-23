@@ -100,7 +100,7 @@ export function ServicesSection() {
           ))}
         </div>
 
-        <p className="mt-6 text-[14px] text-[var(--color-muted)]">
+        <p className="mt-6 max-w-[80ch] text-[14px] text-[var(--color-muted)]">
           Не нашли нужную работу? Опишите проблему в заявке — мастер посмотрит автомобиль и скажет, что делать.
         </p>
       </div>
@@ -481,9 +481,7 @@ export function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    // Нижний отступ на телефоне — с запасом под закреплённую панель действий,
-    // иначе она перекрывает последние строки подвала.
-    <footer className="border-t border-[var(--color-line)] pt-10 pb-[104px] md:pb-10">
+    <footer className="border-t border-[var(--color-line)] py-10">
       <div className="container-x grid gap-6 text-[14px] text-[var(--color-muted)]">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <span className="font-[family-name:var(--font-display)] text-[22px] uppercase tracking-[0.08em] text-[var(--color-ink)]">

@@ -21,7 +21,7 @@ export default function PrivacyPage() {
     <>
       <Header />
 
-      <main className="container-x max-w-[820px] py-10 pb-[76px] md:py-16 md:pb-16">
+      <main className="container-x max-w-[820px] py-10 md:py-16">
         <Link href="/" className="hint inline-flex min-h-[44px] items-center hover:text-[var(--color-ink)]">
           ← На главную
         </Link>
