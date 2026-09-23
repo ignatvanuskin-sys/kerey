@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Керей">
+  <rect width="64" height="64" rx="14" fill="#0E0F11"/>
+  <path d="M18 46V18h6.5v11.2L36 18h8.4L31.6 31.1 45 46h-8.6l-9.5-11.4L24.5 38v8z" fill="#FF5A1F"/>
+  <circle cx="47" cy="21" r="3" fill="#2EC27E"/>
+</svg>

@@ -1,0 +1,30 @@
+node_modules/
+.next/
+out/
+build/
+dist/
+coverage/
+
+# local database
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# env
+.env
+.env.local
+.env*.local
+
+# local backups (git bundles of previous history)
+.backup/
+*.bundle
+
+# misc
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+next-env.d.ts
+tsconfig.tsbuildinfo

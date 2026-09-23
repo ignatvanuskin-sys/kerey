@@ -1,0 +1,48 @@
+{
+  "name": "kerey-autoservice",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Керей — автокомплекс в Кокшетау. Сайт с онлайн-записью и карточкой клиента в Telegram.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "smoke": "powershell -ExecutionPolicy Bypass -File scripts/run-smoke.ps1",
+    "env:init": "node scripts/dev-env.mjs",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:seed": "tsx scripts/seed.ts",
+    "db:reset": "tsx scripts/migrate.ts --reset",
+    "db:clear-limits": "tsx scripts/clear-limits.ts",
+    "og:make": "powershell -ExecutionPolicy Bypass -File scripts/make-og.ps1",
+    "lighthouse": "powershell -ExecutionPolicy Bypass -File scripts/run-lighthouse.ps1",
+    "tg:webhook": "tsx scripts/set-webhook.ts",
+    "tg:webhook:delete": "tsx scripts/set-webhook.ts --delete",
+    "tg:webhook:info": "tsx scripts/set-webhook.ts --info",
+    "cron:notify": "tsx scripts/run-notify.ts"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^26.6.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "date-fns": "^4.4.0",
+    "date-fns-tz": "^3.2.0",
+    "lucide-react": "^1.47.0",
+    "next": "^16.3.6",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.5"
+  }
+}
